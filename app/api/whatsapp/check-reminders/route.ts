@@ -19,6 +19,11 @@ export async function GET() {
     console.log("[v0] VERIFICANDO LEMBRETES DE CALLS E TASKS")
     console.log("[v0] ==========================================")
 
+    const now = new Date()
+    const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
+    console.log("[v0] Hora atual UTC:", now.toISOString())
+    console.log("[v0] Hora atual Brasília:", brasiliaTime.toISOString())
+
     const resultados = {
       reunioes_30min: [] as any[],
       reunioes_agora: [] as any[],
@@ -44,7 +49,10 @@ export async function GET() {
           r.status = 'agendada'
           AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_30min_enviado = FALSE
-          AND r.horario::time BETWEEN (CURRENT_TIME + INTERVAL '25 minutes') AND (CURRENT_TIME + INTERVAL '35 minutes')
+          AND r.horario::time BETWEEN 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '25 minutes') 
+            AND 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '35 minutes')
       `
 
       console.log(`[v0] Reuniões para lembrete 30min encontradas: ${reunioes30min.length}`)
@@ -122,7 +130,10 @@ export async function GET() {
           r.status = 'agendada'
           AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_inicio_enviado = FALSE
-          AND r.horario::time BETWEEN (CURRENT_TIME - INTERVAL '2 minutes') AND (CURRENT_TIME + INTERVAL '2 minutes')
+          AND r.horario::time BETWEEN 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '2 minutes') 
+            AND 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '2 minutes')
       `
 
       console.log(`[v0] Reuniões começando agora: ${reunioesAgora.length}`)
@@ -200,7 +211,10 @@ export async function GET() {
           AND t.data_limite = CURRENT_DATE
           AND t.horario_limite IS NOT NULL
           AND t.lembrete_10min_enviado = FALSE
-          AND t.horario_limite BETWEEN (CURRENT_TIME + INTERVAL '5 minutes') AND (CURRENT_TIME + INTERVAL '15 minutes')
+          AND t.horario_limite BETWEEN 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '5 minutes') 
+            AND 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '15 minutes')
       `
 
       console.log(`[v0] Tasks para lembrete 10min: ${tasks10min.length}`)
@@ -280,7 +294,10 @@ export async function GET() {
           AND t.data_limite = CURRENT_DATE
           AND t.horario_limite IS NOT NULL
           AND t.lembrete_vencimento_enviado = FALSE
-          AND t.horario_limite BETWEEN (CURRENT_TIME - INTERVAL '2 minutes') AND (CURRENT_TIME + INTERVAL '2 minutes')
+          AND t.horario_limite BETWEEN 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '2 minutes') 
+            AND 
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '2 minutes')
       `
 
       console.log(`[v0] Tasks vencendo agora: ${tasksVencidas.length}`)
