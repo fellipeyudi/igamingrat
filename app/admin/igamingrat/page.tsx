@@ -52,6 +52,7 @@ import { format } from "date-fns" // Added date-fns for formatting
 import { ptBR } from "date-fns/locale" // Added ptBR locale for date-fns
 import { Badge } from "@/components/ui/badge" // Added Badge for Avaliações
 import { Label } from "@/components/ui/label" // Added Label for Task form
+import WhatsAppTest from "@/components/whatsapp-test"
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
@@ -155,12 +156,18 @@ export default function AdminDashboard() {
   const [draggedTask, setDraggedTask] = useState<any>(null)
   const [uploadingFile, setUploadingFile] = useState(false)
   const [newChecklistItem, setNewChecklistItem] = useState("")
-  const [newComment, setNewComment] = useState("")
-  const [selectedTags, setSelectedTags] = useState<number[]>([])
   const [checklistItems, setChecklistItems] = useState<string[]>([])
 
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; task: any } | null>(null)
   const [showArchivedTasks, setShowArchivedTasks] = useState(false)
+
+  const [commentModalOpen, setCommentModalOpen] = useState(false)
+  const [selectedTaskForComment, setSelectedTaskForComment] = useState<any>(null)
+  const [newComment, setNewComment] = useState("")
+  const [commentFiles, setCommentFiles] = useState<File[]>([])
+  const [mentionedAdmins, setMentionedAdmins] = useState<string[]>([])
+
+  const [selectedTags, setSelectedTags] = useState<number[]>([]) // Added for task tag selection
 
   const [newTask, setNewTask] = useState({
     titulo: "",
@@ -195,7 +202,7 @@ export default function AdminDashboard() {
         statusEmpresa: {
           estagio_atual: "Sua empresa está na fase de alinhamento estratégico.",
           proxima_fase: "Planejamento",
-          proxima_fase_texto: "Definir claramente as ações e estratégias para estruturar os primeiros passos.",
+          proxima_fase_texto: "Definir claramente as ações e estratégicas para estruturar os primeiros passos.",
           acao_prioritaria: "Garantir clareza total dos objetivos e alinhar todas as expectativas.",
         },
         conquistasRecentes: [{ titulo: "Início da operação – definição de objetivos e alinhamento inicial." }],
@@ -1153,30 +1160,63 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleAddComment = async (taskId: number) => {
-    if (!newComment.trim()) return
+  const openCommentModal = (task: any) => {
+    setSelectedTaskForComment(task)
+    setCommentModalOpen(true)
+    setNewComment("")
+    setCommentFiles([])
+    setMentionedAdmins([])
+  }
+
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedTaskForComment) return
 
     try {
-      const response = await fetch(`/api/admin/tasks/${taskId}/comment`, {
+      console.log("[v0] Enviando comentário para task:", selectedTaskForComment.id)
+
+      // Processar arquivos para base64
+      const anexos = await Promise.all(
+        commentFiles.map(async (file) => {
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader()
+            reader.onloadend = () => resolve(reader.result as string)
+            reader.readAsDataURL(file)
+          })
+          return {
+            nome: file.name,
+            data_base64: base64,
+            tamanho: file.size,
+          }
+        }),
+      )
+
+      const response = await fetch(`/api/admin/tasks/${selectedTaskForComment.id}/comment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          autor: localStorage.getItem("admin_email") || "Admin",
+          autor: localStorage.getItem("admin_name") || "Admin",
+          autor_email: localStorage.getItem("admin_email") || "",
           comentario: newComment,
+          mencoes: mentionedAdmins,
+          anexos: anexos,
         }),
       })
 
       if (response.ok) {
+        console.log("[v0] Comentário enviado com sucesso")
         setNewComment("")
-        loadTasks()
-        // Atualizar também o selectedTask se estiver aberto
-        const updatedTask = tasks.find((t) => t.id === taskId)
-        if (updatedTask) {
-          setSelectedTask(updatedTask)
-        }
+        setCommentFiles([])
+        setMentionedAdmins([])
+        setCommentModalOpen(false)
+        await loadTasks()
+      } else {
+        const errorData = await response.json()
+        console.error("[v0] Erro ao enviar comentário:", errorData)
+        alert("Erro ao enviar comentário: " + (errorData.error || "Erro desconhecido"))
       }
     } catch (error) {
-      console.error("Erro ao adicionar comentário:", error)
+      console.error("[v0] Erro ao adicionar comentário:", error)
+      alert("Erro ao adicionar comentário: " + error)
     }
   }
 
@@ -1562,6 +1602,22 @@ export default function AdminDashboard() {
           <CheckSquare className="h-5 w-5" />
           Tasks
         </button>
+
+        {/* Adicionando botão de WhatsApp na sidebar após Tasks */}
+        <button
+          onClick={() => {
+            setActiveSection("whatsapp")
+            setIsMobileMenuOpen(false)
+          }}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+            activeSection === "whatsapp"
+              ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <MessageSquare className="h-5 w-5" />
+          WhatsApp
+        </button>
       </nav>
 
       <div className="absolute bottom-4 left-4 right-4">
@@ -1835,7 +1891,7 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <div>
                                                   <span className="font-semibold">Horário:</span>{" "}
-                                                  {meeting.horario.substring(0, 5)}
+                                                  {meeting.horario.slice(0, 5)}
                                                 </div>
                                                 <div>
                                                   <span className="font-semibold">Duração:</span> {meeting.duracao}{" "}
@@ -2409,6 +2465,14 @@ export default function AdminDashboard() {
     </div>
   )
 
+  const removeCommentFile = (index: number) => {
+    setCommentFiles((files) => files.filter((_, i) => i !== index))
+  }
+
+  const toggleMentionAdmin = (email: string) => {
+    setMentionedAdmins((prev) => (prev.includes(email) ? prev.filter((e) => e !== email) : [...prev, email]))
+  }
+
   const renderTasksSection = () => {
     const filteredTasks = tasks.filter((task) => {
       // Filtrar por arquivado
@@ -2607,6 +2671,19 @@ export default function AdminDashboard() {
               </div>
             )}
           </div>
+          {/* Adicionando botão de comentar nos cards de task */}
+          <div className="p-4 border-t flex justify-end">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                openCommentModal(task)
+              }}
+              className="text-blue-600 hover:text-blue-800 text-sm flex items-center gap-1"
+            >
+              <MessageSquare className="h-4 w-4" />
+              Comentar ({task.comentarios?.length || 0})
+            </button>
+          </div>
         </Card>
       )
     }
@@ -2639,7 +2716,7 @@ export default function AdminDashboard() {
         const response = await fetch(`/api/admin/tasks/${taskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ arquivado: false }),
+          body: JSON.JSON.stringify({ arquivado: false }),
         })
         if (response.ok) {
           loadTasks()
@@ -3318,7 +3395,7 @@ export default function AdminDashboard() {
             </button>
           </div>
         )}
-        {/* Adicionar loading overlay durante upload */}
+        {/* Loading overlay during upload */}
         {uploadingFile && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4">
@@ -3377,6 +3454,125 @@ export default function AdminDashboard() {
     </header>
   )
 
+  const renderContent = () => {
+    if (activeSection === "whatsapp") {
+      return <WhatsAppTest />
+    }
+
+    switch (activeSection) {
+      case "dashboard":
+        return renderDashboard()
+      case "agenda":
+        return renderAgendaSection()
+      case "logs":
+        return renderLogsSection()
+      case "disponibilidade":
+        return renderDisponibilidadeSection()
+      case "historico":
+        return renderHistoricoSection()
+      case "avaliacoes":
+        return renderAvaliacoes()
+      case "tasks":
+        return renderTasksSection()
+      default:
+        return <div className="p-6 text-center text-gray-500">Seção não encontrada.</div>
+    }
+  }
+
+  const renderCommentModal = () => {
+    return (
+      commentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Comentar em Task</h2>
+                <button onClick={() => setCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Seu Comentário</label>
+                  <Textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Adicione seu comentário aqui..."
+                    rows={5}
+                    className="border border-gray-300 rounded-lg"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Anexos (opcional)</label>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      setCommentFiles((prevFiles) => [...prevFiles, ...files])
+                    }}
+                    className="hidden"
+                    id="comment-files"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => document.getElementById("comment-files")?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Selecionar Arquivos
+                  </Button>
+                  <div className="mt-2 space-y-1">
+                    {commentFiles.map((file, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        <FileText className="h-3 w-3" />
+                        <span className="flex-1 truncate">{file.name}</span>
+                        <button onClick={() => removeCommentFile(index)} className="text-red-500 hover:text-red-700">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mentions */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Mencionar Admins (opcional)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {admins.map((admin) => (
+                      <button
+                        key={admin.id}
+                        onClick={() => toggleMentionAdmin(admin.email)}
+                        className={`px-3 py-1 rounded-full text-xs ${
+                          mentionedAdmins.includes(admin.email)
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        {admin.nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button variant="outline" onClick={() => setCommentModalOpen(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddComment} disabled={!newComment.trim()} className="flex-1">
+                  Enviar Comentário
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile Menu Toggle */}
@@ -3393,16 +3589,7 @@ export default function AdminDashboard() {
         {renderHeader()}
 
         <main className="p-4 sm:p-6">
-          <div className="max-w-7xl mx-auto">
-            {activeSection === "dashboard" && renderDashboard()}
-            {activeSection === "agenda" && renderAgendaSection()}
-            {activeSection === "logs" && renderLogsSection()}
-            {activeSection === "disponibilidade" && renderDisponibilidadeSection()}
-            {activeSection === "historico" && renderHistoricoSection()}
-            {/* Adicionando renderização da seção de avaliações */}
-            {activeSection === "avaliacoes" && renderAvaliacoes()}
-            {activeSection === "tasks" && renderTasksSection()}
-          </div>
+          <div className="max-w-7xl mx-auto">{renderContent()}</div>
         </main>
       </div>
 
@@ -4582,6 +4769,9 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* Modal de comentários */}
+      {renderCommentModal()}
     </div>
   )
 }

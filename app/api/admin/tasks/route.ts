@@ -1,4 +1,5 @@
 import { neon } from "@neondatabase/serverless"
+import { sendWhatsAppMessage, formatarMensagemTask, formatarLembreteTask, NOTIFICATION_GROUP_ID } from "@/lib/whatsapp"
 
 const sql = neon(
   "postgresql://neondb_owner:npg_TNMj2X4HrqEw@ep-misty-mode-acoot3dc-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
@@ -108,11 +109,10 @@ export async function POST(request: Request) {
       horario,
     } = body
 
-    // Criar a task
     const [task] = await sql`
       INSERT INTO tasks (
         titulo, descricao, status, prioridade, atribuido_para,
-        mentorado_id, data_limite, criado_por, anexos, horario
+        mentorado_id, data_limite, criado_por, anexos, horario_limite
       )
       VALUES (
         ${titulo}, ${descricao}, ${status || "todo"}, ${prioridade || "media"},
@@ -122,7 +122,6 @@ export async function POST(request: Request) {
       RETURNING *
     `
 
-    // Adicionar tags
     if (tags && tags.length > 0) {
       for (const tagId of tags) {
         await sql`
@@ -146,6 +145,128 @@ export async function POST(request: Request) {
           )
         `
       }
+    }
+
+    try {
+      let mentorado_nome = null
+      if (mentorado_id) {
+        const mentorado = await sql`
+          SELECT nome FROM mentorados WHERE id = ${mentorado_id}
+        `
+        mentorado_nome = mentorado[0]?.nome
+      }
+
+      let dataFormatada = null
+      if (data_limite) {
+        const [year, month, day] = data_limite.split("-")
+        dataFormatada = `${day}/${month}/${year}`
+      }
+
+      const mensagem = formatarMensagemTask({
+        titulo,
+        descricao,
+        prioridade: prioridade || "media",
+        atribuido_para,
+        mentorado_nome,
+        data_limite: dataFormatada,
+        horario,
+      })
+
+      const logInicial = await sql`
+        INSERT INTO whatsapp_logs (telefone, mensagem, tipo, status, mentorado_id, enviado_por)
+        VALUES (
+          ${NOTIFICATION_GROUP_ID},
+          ${mensagem},
+          'task_criada',
+          'enviando',
+          ${mentorado_id || null},
+          ${criado_por || "sistema"}
+        )
+        RETURNING id
+      `
+
+      const logId = logInicial[0].id
+
+      sendWhatsAppMessage(NOTIFICATION_GROUP_ID, mensagem)
+        .then(async (resultado) => {
+          await sql`
+            UPDATE whatsapp_logs
+            SET 
+              status = ${resultado.success ? "sucesso" : "erro"},
+              response_data = ${JSON.stringify(resultado.response || {})},
+              error_message = ${resultado.error || null}
+            WHERE id = ${logId}
+          `
+          console.log("[v0] WhatsApp notificação de task enviada:", resultado)
+        })
+        .catch(async (error) => {
+          await sql`
+            UPDATE whatsapp_logs
+            SET 
+              status = 'erro',
+              error_message = ${error.message}
+            WHERE id = ${logId}
+          `
+          console.error("[v0] Erro ao enviar WhatsApp de task:", error)
+        })
+
+      if (data_limite && horario) {
+        const agora = new Date()
+        const [anoTask, mesTask, diaTask] = data_limite.split("-")
+        const dataTask = new Date(Number(anoTask), Number(mesTask) - 1, Number(diaTask))
+        const [horaTask, minutoTask] = horario.split(":")
+        dataTask.setHours(Number(horaTask), Number(minutoTask), 0, 0)
+
+        const diferencaMinutos = (dataTask.getTime() - agora.getTime()) / 60000
+
+        console.log("[v0] Verificando janela de alerta da task:", {
+          agora: agora.toISOString(),
+          dataTask: dataTask.toISOString(),
+          diferencaMinutos,
+        })
+
+        // Se falta 10 minutos ou menos, envia o lembrete de 10min
+        if (diferencaMinutos > 0 && diferencaMinutos <= 10) {
+          const horarioFormatado = horario.substring(0, 5)
+          const mensagemLembrete = formatarLembreteTask({
+            titulo,
+            descricao,
+            prioridade: prioridade || "media",
+            atribuido_para,
+            mentorado_nome,
+            horario: horarioFormatado,
+            minutos: Math.floor(diferencaMinutos),
+          })
+
+          sendWhatsAppMessage(NOTIFICATION_GROUP_ID, mensagemLembrete, "lembrete_task_imediato")
+            .then(async (resultado) => {
+              await sql`
+                INSERT INTO whatsapp_logs (telefone, mensagem, tipo, status, mentorado_id, enviado_por)
+                VALUES (
+                  ${NOTIFICATION_GROUP_ID},
+                  ${mensagemLembrete},
+                  'lembrete_task_imediato',
+                  ${resultado.success ? "sucesso" : "erro"},
+                  ${mentorado_id || null},
+                  'sistema_automatico'
+                )
+              `
+
+              await sql`
+                UPDATE tasks
+                SET lembrete_10min_enviado = TRUE
+                WHERE id = ${task.id}
+              `
+
+              console.log("[v0] Lembrete imediato de task enviado:", resultado)
+            })
+            .catch((error) => {
+              console.error("[v0] Erro ao enviar lembrete imediato de task:", error)
+            })
+        }
+      }
+    } catch (whatsappError) {
+      console.error("[v0] Erro ao processar notificação WhatsApp de task:", whatsappError)
     }
 
     return Response.json({ task })

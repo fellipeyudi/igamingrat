@@ -1,5 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import {
+  sendWhatsAppMessage,
+  formatarMensagemReuniao,
+  formatarLembreteReuniao,
+  NOTIFICATION_GROUP_ID,
+} from "@/lib/whatsapp"
 
 const sql = neon(
   "postgresql://neondb_owner:npg_TNMj2X4HrqEw@ep-misty-mode-acoot3dc-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
@@ -86,7 +92,7 @@ export async function POST(request: NextRequest) {
       createCallPendente,
       callPendenteTitulo,
       callPendenteStatus,
-      planejamento, // Adicionar campo planejamento
+      planejamento,
     } = data
 
     const adminEmail = request.headers.get("x-admin-email") || "sistema"
@@ -103,10 +109,9 @@ export async function POST(request: NextRequest) {
       callPendenteTitulo,
       callPendenteStatus,
       adminEmail,
-      planejamento, // Log do planejamento
+      planejamento,
     })
 
-    // Validar parâmetros obrigatórios
     if (!mentorado_id || !meetingDate || !horario || !titulo || !admin_id) {
       return NextResponse.json({ error: "Parâmetros obrigatórios faltando" }, { status: 400 })
     }
@@ -150,12 +155,123 @@ export async function POST(request: NextRequest) {
           horario,
           meet_link,
           admin_id,
-          planejamento, // Incluir planejamento nos detalhes do log
+          planejamento,
         })}::jsonb
       )
     `
 
-    console.log("[v0] Buscando próxima reunião para mentorado_id:", mentorado_id)
+    try {
+      const [year, month, day] = meetingDate.split("-")
+      const dataFormatada = `${day}/${month}/${year}`
+      const horarioFormatado = horario.substring(0, 5)
+
+      const mensagem = formatarMensagemReuniao({
+        mentorado_nome: mentorado[0]?.nome || "Mentorado",
+        titulo,
+        data: dataFormatada,
+        horario: horarioFormatado,
+        meet_link,
+      })
+
+      console.log("[v0] Preparando envio de WhatsApp:", {
+        grupo: NOTIFICATION_GROUP_ID,
+        mensagem,
+      })
+
+      const logInicial = await sql`
+        INSERT INTO whatsapp_logs (telefone, mensagem, tipo, status, reuniao_id, mentorado_id, enviado_por)
+        VALUES (
+          ${NOTIFICATION_GROUP_ID},
+          ${mensagem},
+          'reuniao_criada',
+          'enviando',
+          ${newMeeting[0].id},
+          ${Number.parseInt(mentorado_id)},
+          ${adminEmail}
+        )
+        RETURNING id
+      `
+
+      const logId = logInicial[0].id
+
+      sendWhatsAppMessage(NOTIFICATION_GROUP_ID, mensagem)
+        .then(async (resultado) => {
+          await sql`
+            UPDATE whatsapp_logs
+            SET 
+              status = ${resultado.success ? "sucesso" : "erro"},
+              response_data = ${JSON.stringify(resultado.response || {})},
+              error_message = ${resultado.error || null}
+            WHERE id = ${logId}
+          `
+          console.log("[v0] WhatsApp enviado:", resultado)
+        })
+        .catch(async (error) => {
+          await sql`
+            UPDATE whatsapp_logs
+            SET 
+              status = 'erro',
+              error_message = ${error.message}
+            WHERE id = ${logId}
+          `
+          console.error("[v0] Erro ao enviar WhatsApp:", error)
+        })
+
+      const agora = new Date()
+      const [anoReuniao, mesReuniao, diaReuniao] = meetingDate.split("-")
+      const dataReuniao = new Date(Number(anoReuniao), Number(mesReuniao) - 1, Number(diaReuniao))
+      const [horaReuniao, minutoReuniao] = horario.split(":")
+      dataReuniao.setHours(Number(horaReuniao), Number(minutoReuniao), 0, 0)
+
+      const diferencaMinutos = (dataReuniao.getTime() - agora.getTime()) / 60000
+
+      console.log("[v0] Verificando janela de alerta:", {
+        agora: agora.toISOString(),
+        dataReuniao: dataReuniao.toISOString(),
+        diferencaMinutos,
+      })
+
+      if (diferencaMinutos > 0 && diferencaMinutos <= 30) {
+        const mensagemLembrete = formatarLembreteReuniao({
+          mentorado_nome: mentorado[0]?.nome || "Mentorado",
+          titulo,
+          horario: horarioFormatado,
+          meet_link,
+          minutos: Math.floor(diferencaMinutos),
+        })
+
+        sendWhatsAppMessage(NOTIFICATION_GROUP_ID, mensagemLembrete, "lembrete_reuniao_imediato")
+          .then(async (resultado) => {
+            await sql`
+              INSERT INTO whatsapp_logs (telefone, mensagem, tipo, status, reuniao_id, mentorado_id, enviado_por)
+              VALUES (
+                ${NOTIFICATION_GROUP_ID},
+                ${mensagemLembrete},
+                'lembrete_reuniao_imediato',
+                ${resultado.success ? "sucesso" : "erro"},
+                ${newMeeting[0].id},
+                ${Number.parseInt(mentorado_id)},
+                'sistema_automatico'
+              )
+            `
+
+            await sql`
+              UPDATE reunioes
+              SET lembrete_30min_enviado = TRUE
+              WHERE id = ${newMeeting[0].id}
+            `
+
+            console.log("[v0] Lembrete imediato enviado:", resultado)
+          })
+          .catch((error) => {
+            console.error("[v0] Erro ao enviar lembrete imediato:", error)
+          })
+      }
+
+      console.log("[v0] Notificação WhatsApp iniciada (async)")
+    } catch (whatsappError) {
+      console.error("[v0] Erro ao processar notificação WhatsApp:", whatsappError)
+    }
 
     const proximaReuniao = await sql`
       SELECT data, horario, titulo, meet_link
@@ -180,10 +296,8 @@ export async function POST(request: NextRequest) {
 
       let dataFormatada = "Data inválida"
       try {
-        // Extrair apenas a parte da data (YYYY-MM-DD) e formatar manualmente
         let dataStr = reuniao.data
 
-        // Se a data vier como objeto Date, converter para string
         if (reuniao.data instanceof Date) {
           dataStr = reuniao.data.toISOString().split("T")[0]
         } else if (typeof reuniao.data === "string") {
@@ -206,7 +320,6 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Formatar horário (HH:MM)
       const horarioFormatado = reuniao.horario.substring(0, 5)
 
       const agendaUpdate = {
@@ -218,7 +331,6 @@ export async function POST(request: NextRequest) {
         },
       }
 
-      // Se foi solicitado criar call pendente, adicionar aos dados
       if (createCallPendente && callPendenteTitulo) {
         agendaUpdate.call_pendente = {
           titulo: callPendenteTitulo,

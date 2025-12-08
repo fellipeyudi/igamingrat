@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
+import { sendWhatsAppMessage, formatarMensagemMentorado, NOTIFICATION_GROUP_ID } from "@/lib/whatsapp"
 
 const sql = neon(
   "postgresql://neondb_owner:npg_TNMj2X4HrqEw@ep-misty-mode-acoot3dc-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
@@ -169,6 +170,56 @@ export async function POST(request: NextRequest) {
         ${JSON.stringify({ nome, email: normalizedEmail, slug, empresa, telefone, fase_atual, comentarios })}::jsonb
       )
     `
+
+    try {
+      const mensagem = formatarMensagemMentorado({
+        nome,
+        email: normalizedEmail,
+        empresa,
+        telefone,
+        fase_atual,
+      })
+
+      const logInicial = await sql`
+        INSERT INTO whatsapp_logs (telefone, mensagem, tipo, status, mentorado_id, enviado_por)
+        VALUES (
+          ${NOTIFICATION_GROUP_ID},
+          ${mensagem},
+          'mentorado_criado',
+          'enviando',
+          ${result[0].id},
+          ${adminEmail}
+        )
+        RETURNING id
+      `
+
+      const logId = logInicial[0].id
+
+      sendWhatsAppMessage(NOTIFICATION_GROUP_ID, mensagem)
+        .then(async (resultado) => {
+          await sql`
+            UPDATE whatsapp_logs
+            SET 
+              status = ${resultado.success ? "sucesso" : "erro"},
+              response_data = ${JSON.stringify(resultado.response || {})},
+              error_message = ${resultado.error || null}
+            WHERE id = ${logId}
+          `
+          console.log("[v0] WhatsApp notificação de mentorado enviada:", resultado)
+        })
+        .catch(async (error) => {
+          await sql`
+            UPDATE whatsapp_logs
+            SET 
+              status = 'erro',
+              error_message = ${error.message}
+            WHERE id = ${logId}
+          `
+          console.error("[v0] Erro ao enviar WhatsApp de mentorado:", error)
+        })
+    } catch (whatsappError) {
+      console.error("[v0] Erro ao processar notificação WhatsApp de mentorado:", whatsappError)
+    }
 
     console.log("[v0] Mentorado created successfully by:", adminEmail)
 
