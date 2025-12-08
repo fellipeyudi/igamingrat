@@ -15,12 +15,6 @@ const sql = neon(
 
 export async function GET() {
   try {
-    const now = new Date()
-    console.log("[v0] Cron job executado:", {
-      serverTime: now.toISOString(),
-      localBRT: now.toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }),
-    })
-
     const resultados = {
       reunioes_30min: [] as any[],
       reunioes_agora: [] as any[],
@@ -37,9 +31,7 @@ export async function GET() {
           r.data,
           r.meet_link,
           m.nome as mentorado_nome,
-          r.mentorado_id,
-          NOW() AT TIME ZONE 'America/Sao_Paulo' as hora_servidor_brt,
-          r.horario::time as hora_reuniao
+          r.mentorado_id
         FROM reunioes r
         JOIN mentorados m ON r.mentorado_id = m.id
         WHERE 
@@ -47,12 +39,10 @@ export async function GET() {
           AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_30min_enviado = FALSE
           AND r.horario::time BETWEEN 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '25 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '25 minutes') 
             AND 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '35 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '35 minutes')
       `
-
-      console.log("[v0] Reuniões 30min encontradas:", reunioes30min.length, reunioes30min)
 
       for (const reuniao of reunioes30min) {
         try {
@@ -113,9 +103,7 @@ export async function GET() {
           r.data,
           r.meet_link,
           m.nome as mentorado_nome,
-          r.mentorado_id,
-          NOW() AT TIME ZONE 'America/Sao_Paulo' as hora_servidor_brt,
-          r.horario::time as hora_reuniao
+          r.mentorado_id
         FROM reunioes r
         JOIN mentorados m ON r.mentorado_id = m.id
         WHERE 
@@ -123,12 +111,10 @@ export async function GET() {
           AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_inicio_enviado = FALSE
           AND r.horario::time BETWEEN 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time - INTERVAL '2 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '2 minutes') 
             AND 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '2 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '2 minutes')
       `
-
-      console.log("[v0] Reuniões agora encontradas:", reunioesAgora.length, reunioesAgora)
 
       for (const reuniao of reunioesAgora) {
         try {
@@ -199,12 +185,10 @@ export async function GET() {
           AND t.horario_limite IS NOT NULL
           AND t.lembrete_10min_enviado = FALSE
           AND t.horario_limite BETWEEN 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '5 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '5 minutes') 
             AND 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '15 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '15 minutes')
       `
-
-      console.log("[v0] Tasks 10min encontradas:", tasks10min.length, tasks10min)
 
       for (const task of tasks10min) {
         try {
@@ -277,12 +261,10 @@ export async function GET() {
           AND t.horario_limite IS NOT NULL
           AND t.lembrete_vencimento_enviado = FALSE
           AND t.horario_limite BETWEEN 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time - INTERVAL '2 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') - INTERVAL '2 minutes') 
             AND 
-            (NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '2 minutes'
+            ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '2 minutes')
       `
-
-      console.log("[v0] Tasks vencidas encontradas:", tasksVencidas.length, tasksVencidas)
 
       for (const task of tasksVencidas) {
         try {
