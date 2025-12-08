@@ -41,12 +41,13 @@ export async function GET() {
         JOIN mentorados m ON r.mentorado_id = m.id
         WHERE 
           r.status = 'agendada'
-          AND r.data = CURRENT_DATE
+          AND DATE(r.data AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
           AND r.lembrete_30min_enviado = FALSE
-          AND r.horario BETWEEN (CURRENT_TIME + INTERVAL '25 minutes') AND (CURRENT_TIME + INTERVAL '35 minutes')
+          AND r.horario::time BETWEEN (CURRENT_TIME + INTERVAL '25 minutes') AND (CURRENT_TIME + INTERVAL '35 minutes')
       `
 
       console.log(`[v0] Reuniões para lembrete 30min: ${reunioes30min.length}`)
+      console.log(`[v0] Hora atual do servidor: ${new Date().toISOString()}`)
 
       for (const reuniao of reunioes30min) {
         try {
@@ -116,9 +117,9 @@ export async function GET() {
         JOIN mentorados m ON r.mentorado_id = m.id
         WHERE 
           r.status = 'agendada'
-          AND r.data = CURRENT_DATE
+          AND DATE(r.data AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
           AND r.lembrete_inicio_enviado = FALSE
-          AND r.horario BETWEEN (CURRENT_TIME - INTERVAL '2 minutes') AND (CURRENT_TIME + INTERVAL '2 minutes')
+          AND r.horario::time BETWEEN (CURRENT_TIME - INTERVAL '2 minutes') AND (CURRENT_TIME + INTERVAL '2 minutes')
       `
 
       console.log(`[v0] Reuniões começando agora: ${reunioesAgora.length}`)
