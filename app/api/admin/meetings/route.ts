@@ -1,11 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
-import {
-  sendWhatsAppMessage,
-  formatarMensagemReuniao,
-  formatarLembreteReuniao,
-  NOTIFICATION_GROUP_ID,
-} from "@/lib/whatsapp"
+import { sendWhatsAppMessage, formatarMensagemReuniao, NOTIFICATION_GROUP_ID } from "@/lib/whatsapp"
 
 const sql = neon(
   "postgresql://neondb_owner:npg_TNMj2X4HrqEw@ep-misty-mode-acoot3dc-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
@@ -216,57 +211,6 @@ export async function POST(request: NextRequest) {
           `
           console.error("[v0] Erro ao enviar WhatsApp:", error)
         })
-
-      const agora = new Date()
-      const [anoReuniao, mesReuniao, diaReuniao] = meetingDate.split("-")
-      const dataReuniao = new Date(Number(anoReuniao), Number(mesReuniao) - 1, Number(diaReuniao))
-      const [horaReuniao, minutoReuniao] = horario.split(":")
-      dataReuniao.setHours(Number(horaReuniao), Number(minutoReuniao), 0, 0)
-
-      const diferencaMinutos = (dataReuniao.getTime() - agora.getTime()) / 60000
-
-      console.log("[v0] Verificando janela de alerta:", {
-        agora: agora.toISOString(),
-        dataReuniao: dataReuniao.toISOString(),
-        diferencaMinutos,
-      })
-
-      if (diferencaMinutos > 0 && diferencaMinutos <= 30) {
-        const mensagemLembrete = formatarLembreteReuniao({
-          mentorado_nome: mentorado[0]?.nome || "Mentorado",
-          titulo,
-          horario: horarioFormatado,
-          meet_link,
-          minutos: Math.floor(diferencaMinutos),
-        })
-
-        sendWhatsAppMessage(NOTIFICATION_GROUP_ID, mensagemLembrete, "lembrete_reuniao_imediato")
-          .then(async (resultado) => {
-            await sql`
-              INSERT INTO whatsapp_logs (telefone, mensagem, tipo, status, reuniao_id, mentorado_id, enviado_por)
-              VALUES (
-                ${NOTIFICATION_GROUP_ID},
-                ${mensagemLembrete},
-                'lembrete_reuniao_imediato',
-                ${resultado.success ? "sucesso" : "erro"},
-                ${newMeeting[0].id},
-                ${Number.parseInt(mentorado_id)},
-                'sistema_automatico'
-              )
-            `
-
-            await sql`
-              UPDATE reunioes
-              SET lembrete_30min_enviado = TRUE
-              WHERE id = ${newMeeting[0].id}
-            `
-
-            console.log("[v0] Lembrete imediato enviado:", resultado)
-          })
-          .catch((error) => {
-            console.error("[v0] Erro ao enviar lembrete imediato:", error)
-          })
-      }
 
       console.log("[v0] Notificação WhatsApp iniciada (async)")
     } catch (whatsappError) {
