@@ -1,5 +1,7 @@
 "use client"
 
+import type React from "react"
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import {
@@ -29,6 +31,18 @@ import {
   Pencil,
   Check,
   Star,
+  CheckSquare,
+  Tag,
+  AlertCircle,
+  CheckCircle,
+  User,
+  UserCheck,
+  Upload,
+  Paperclip,
+  Download,
+  Send,
+  Archive,
+  Edit2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Added CardTitle
 import { Button } from "@/components/ui/button"
@@ -37,6 +51,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { format } from "date-fns" // Added date-fns for formatting
 import { ptBR } from "date-fns/locale" // Added ptBR locale for date-fns
 import { Badge } from "@/components/ui/badge" // Added Badge for Avaliações
+import { Label } from "@/components/ui/label" // Added Label for Task form
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
@@ -46,22 +61,20 @@ export default function AdminDashboard() {
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false)
-  const [showEditMeetingModal, setShowEditMeetingModal] = useState(false) // State for editing meeting modal
+  const [showEditMeetingModal, setShowEditMeetingModal] = useState(false)
   const [editingMentorado, setEditingMentorado] = useState<number | null>(null)
   const [expandedMentorado, setExpandedMentorado] = useState<number | null>(null)
-  // REMOVED: const [searchTerm, setSearchTerm] = useState("") // Renamed to mentoradoSearchTerm for clarity
   const [creating, setCreating] = useState(false)
 
   const [mentorados, setMentorados] = useState([])
   const [meetings, setMeetings] = useState([])
   const [selectedDate, setSelectedDate] = useState(new Date())
   const [isLoadingMeetings, setIsLoadingMeetings] = useState(false)
-  const [loadingDate, setLoadingDate] = useState(false) // Added for loading state of date navigation
+  const [loadingDate, setLoadingDate] = useState(false)
   const [logs, setLogs] = useState([])
   const [totalMeetings, setTotalMeetings] = useState(0)
   const [upcomingMeetings, setUpcomingMeetings] = useState(0)
-  // REMOVED: const [todayMeetings, setTodayMeetings] = useState(0) // New state for meetings of the selected date
-  const [callsToday, setCallsToday] = useState(0) // New state for calls today
+  const [callsToday, setCallsToday] = useState(0)
 
   const [admins, setAdmins] = useState<any[]>([])
 
@@ -77,9 +90,8 @@ export default function AdminDashboard() {
     horario_realizacao: "",
   })
 
-  // State for editing an existing meeting
   const [editingMeeting, setEditingMeeting] = useState<any>(null)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false) // New state for edit modal visibility
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
 
   const [newMeeting, setNewMeeting] = useState({
     mentorado_id: "",
@@ -88,12 +100,12 @@ export default function AdminDashboard() {
     duracao: 30,
     titulo: "",
     meet_link: "",
-    admin_id: "1", // Default para admin principal
+    admin_id: "1",
     createCallPendente: false,
     callPendenteTitulo: "",
     callPendenteStatus: "A definir",
     status: "agendada",
-    tipo: "mentoria", // Default type
+    tipo: "mentoria",
     planejamento: "",
   })
 
@@ -118,7 +130,6 @@ export default function AdminDashboard() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
-  // State for showing info tooltip
   const [showInfo, setShowInfo] = useState<number | null>(null)
 
   // Mock data for time slots (replace with actual generation)
@@ -129,6 +140,46 @@ export default function AdminDashboard() {
   })
 
   const [mentoradoSearchTerm, setMentoradoSearchTerm] = useState("")
+
+  const [avaliacoes, setAvaliacoes] = useState<any[]>([])
+  const [loadingAvaliacoes, setLoadingAvaliacoes] = useState(true)
+
+  const [tasks, setTasks] = useState<any[]>([])
+  const [taskTags, setTaskTags] = useState<any[]>([])
+  const [loadingTasks, setLoadingTasks] = useState(false)
+  const [showNewTaskModal, setShowNewTaskModal] = useState(false)
+  const [showTaskDetailModal, setShowTaskDetailModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<any>(null)
+  const [taskFilter, setTaskFilter] = useState("todas")
+  const [taskSearchTerm, setTaskSearchTerm] = useState("")
+  const [draggedTask, setDraggedTask] = useState<any>(null)
+  const [uploadingFile, setUploadingFile] = useState(false)
+  const [newChecklistItem, setNewChecklistItem] = useState("")
+  const [newComment, setNewComment] = useState("")
+  const [selectedTags, setSelectedTags] = useState<number[]>([])
+  const [checklistItems, setChecklistItems] = useState<string[]>([])
+
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; task: any } | null>(null)
+  const [showArchivedTasks, setShowArchivedTasks] = useState(false)
+
+  const [newTask, setNewTask] = useState({
+    titulo: "",
+    descricao: "",
+    status: "todo",
+    prioridade: "media",
+    atribuido_para: "", // Changed to string to match the new select value
+    admin_id: null as number | null, // Changed to admin_id
+    mentorado_id: null as number | null,
+    data_limite: "",
+    tags: [] as number[],
+    checklist: [] as { texto: string; concluido: boolean }[],
+    comentarios: [] as { autor: string; comentario: string; created_at: string }[],
+    total_checklist: 0,
+    checklist_concluidos: 0,
+    anexos: [] as { nome: string; data: string; tamanho: number }[],
+    horario: "",
+    arquivado: false, // Add archived status
+  })
 
   const getDefaultTextsByPhase = (phase: string, nome = "mentorado") => {
     const phaseTexts = {
@@ -395,11 +446,22 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null)
+    if (contextMenu) {
+      document.addEventListener("click", handleClickOutside)
+      return () => document.removeEventListener("click", handleClickOutside)
+    }
+  }, [contextMenu])
+
+  useEffect(() => {
     loadMentorados()
     loadMeetings()
     loadMeetingsMetrics()
     loadAdmins() // Adicionar carregamento de admins
-  }, [])
+    if (activeSection === "tasks") {
+      loadTasks()
+    }
+  }, [activeSection]) // Dependência adicionada para garantir que loadTasks seja chamado quando activeSection mudar
 
   useEffect(() => {
     fetchMentoradosAndMeetings()
@@ -408,6 +470,26 @@ export default function AdminDashboard() {
   useEffect(() => {
     if (activeSection === "logs" && isAuthenticated) {
       fetchLogs() // Fetch logs when the logs tab is active
+    }
+  }, [activeSection, isAuthenticated])
+
+  useEffect(() => {
+    if (activeSection === "avaliacoes" && isAuthenticated) {
+      const fetchAvaliacoes = async () => {
+        try {
+          setLoadingAvaliacoes(true)
+          const response = await fetch("/api/admin/avaliacoes")
+          if (response.ok) {
+            const data = await response.json()
+            setAvaliacoes(data.avaliacoes || [])
+          }
+        } catch (error) {
+          console.error("Erro ao carregar avaliações:", error)
+        } finally {
+          setLoadingAvaliacoes(false)
+        }
+      }
+      fetchAvaliacoes()
     }
   }, [activeSection, isAuthenticated])
 
@@ -477,6 +559,12 @@ export default function AdminDashboard() {
       loadMeetingsMetrics() // Also load metrics when agenda section becomes active
     }
   }, [selectedDate, isAuthenticated, activeSection])
+
+  useEffect(() => {
+    if (activeSection === "agenda") {
+      loadMeetingsMetrics()
+    }
+  }, [activeSection, selectedDate])
 
   useEffect(() => {
     const loadMeetingsForDate = async () => {
@@ -946,29 +1034,220 @@ export default function AdminDashboard() {
     }
   }
 
-  const renderAvaliacoes = () => {
-    const [avaliacoes, setAvaliacoes] = useState<any[]>([])
-    const [loading, setLoading] = useState(true)
+  const loadTasks = async () => {
+    try {
+      setLoadingTasks(true)
+      const response = await fetch("/api/admin/tasks")
+      if (response.ok) {
+        const data = await response.json()
+        setTasks(data.tasks || [])
+        setTaskTags(data.tags || [])
+      }
+    } catch (error) {
+      console.error("Erro ao carregar tasks:", error)
+    } finally {
+      setLoadingTasks(false)
+    }
+  }
 
-    useEffect(() => {
-      // Moved fetchAvaliacoes to be called directly in useEffect
-      const fetchAvaliacoes = async () => {
-        try {
-          const response = await fetch("/api/admin/avaliacoes")
-          if (response.ok) {
-            const data = await response.json()
-            setAvaliacoes(data.avaliacoes)
-          }
-        } catch (error) {
-          console.error("Erro ao carregar avaliações:", error)
-        } finally {
-          setLoading(false)
+  const handleCreateTask = async () => {
+    if (!newTask.titulo.trim()) {
+      alert("O título é obrigatório")
+      return
+    }
+
+    // Find admin ID based on selected admin name
+    const selectedAdmin = admins.find((a) => a.nome === newTask.atribuido_para)
+    const adminId = selectedAdmin ? selectedAdmin.id : null
+
+    try {
+      const response = await fetch("/api/admin/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newTask,
+          admin_id: adminId, // Use the found admin ID
+          criado_por: localStorage.getItem("admin_email") || "Admin",
+          tags: newTask.tags,
+          total_checklist: newTask.checklist.length,
+          checklist_concluidos: newTask.checklist.filter((item) => item.concluido).length,
+        }),
+      })
+
+      if (response.ok) {
+        setShowNewTaskModal(false)
+        setNewTask({
+          titulo: "",
+          descricao: "",
+          status: "todo",
+          prioridade: "media",
+          atribuido_para: "", // Reset to empty string
+          admin_id: null,
+          mentorado_id: null,
+          data_limite: "",
+          tags: [],
+          checklist: [],
+          comentarios: [],
+          total_checklist: 0,
+          checklist_concluidos: 0,
+          anexos: [],
+          horario: "",
+          arquivado: false, // Reset archived status
+        })
+        setNewChecklistItem("")
+        setSelectedTags([]) // Reset selected tags
+        loadTasks()
+      } else {
+        alert("Erro ao criar task")
+      }
+    } catch (error) {
+      console.error("Erro ao criar task:", error)
+      alert("Erro ao criar task")
+    }
+  }
+
+  const handleUpdateTaskStatus = async (taskId: number, status: string) => {
+    try {
+      const response = await fetch(`/api/admin/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      })
+
+      if (response.ok) {
+        loadTasks()
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar status:", error)
+    }
+  }
+
+  const handleToggleChecklistItem = async (taskId: number, itemIndex: number) => {
+    const task = tasks.find((t) => t.id === taskId)
+    if (!task || !task.checklist) return
+
+    const updatedChecklist = task.checklist.map((item: any, index: number) => {
+      if (index === itemIndex) {
+        return { ...item, concluido: !item.concluido }
+      }
+      return item
+    })
+
+    try {
+      const response = await fetch(`/api/admin/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checklist: updatedChecklist }),
+      })
+
+      if (response.ok) {
+        setSelectedTask({
+          ...task,
+          checklist: updatedChecklist,
+          checklist_concluidos: updatedChecklist.filter((item: any) => item.concluido).length,
+        })
+        loadTasks()
+      }
+    } catch (error) {
+      console.error("Erro ao atualizar checklist:", error)
+    }
+  }
+
+  const handleAddComment = async (taskId: number) => {
+    if (!newComment.trim()) return
+
+    try {
+      const response = await fetch(`/api/admin/tasks/${taskId}/comment`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          autor: localStorage.getItem("admin_email") || "Admin",
+          comentario: newComment,
+        }),
+      })
+
+      if (response.ok) {
+        setNewComment("")
+        loadTasks()
+        // Atualizar também o selectedTask se estiver aberto
+        const updatedTask = tasks.find((t) => t.id === taskId)
+        if (updatedTask) {
+          setSelectedTask(updatedTask)
         }
       }
-      fetchAvaliacoes()
-    }, [])
+    } catch (error) {
+      console.error("Erro ao adicionar comentário:", error)
+    }
+  }
 
-    if (loading) {
+  const handleDeleteTask = async (taskId: number) => {
+    if (!confirm("Tem certeza que deseja deletar esta task?")) return
+
+    try {
+      const response = await fetch(`/api/admin/tasks/${taskId}`, {
+        method: "DELETE",
+      })
+
+      if (response.ok) {
+        setShowTaskDetailModal(false)
+        setSelectedTask(null)
+        loadTasks()
+      }
+    } catch (error) {
+      console.error("Erro ao deletar task:", error)
+      alert("Erro ao deletar task")
+    }
+  }
+
+  const handleFileUpload = async (taskId: number, file: File) => {
+    try {
+      setUploadingFile(true)
+
+      // Convert file to base64
+      const reader = new FileReader()
+      reader.onloadend = async () => {
+        const base64Data = reader.result as string
+
+        const anexo = {
+          nome: file.name,
+          data: base64Data,
+          tamanho: file.size,
+        }
+
+        const response = await fetch(`/api/admin/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            anexos: [...(selectedTask?.anexos || []), anexo],
+          }),
+        })
+
+        if (response.ok) {
+          await loadTasks()
+          // Atualizar o selectedTask com os novos anexos
+          const updatedTasks = await fetch("/api/admin/tasks").then((r) => r.json())
+          const updatedTask = updatedTasks.tasks.find((t: any) => t.id === taskId)
+          if (updatedTask) {
+            setSelectedTask(updatedTask)
+          }
+          alert("Arquivo enviado com sucesso!")
+        } else {
+          alert("Erro ao enviar arquivo")
+        }
+      }
+
+      reader.readAsDataURL(file)
+    } catch (error) {
+      console.error("Erro ao fazer upload:", error)
+      alert("Erro ao enviar arquivo")
+    } finally {
+      setUploadingFile(false)
+    }
+  }
+
+  // Render Avaliações Section
+  const renderAvaliacoes = () => {
+    if (loadingAvaliacoes) {
       return (
         <div className="text-center py-12">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -1048,7 +1327,7 @@ export default function AdminDashboard() {
                     <div className="bg-purple-50 rounded-lg p-3">
                       <p className="text-xs text-purple-600 font-medium mb-1">Entregáveis</p>
                       <div className="flex items-center gap-1">
-                        {Array.from({ length: avaliacao.qualidade_entregaveis }).map((_, i) => (
+                        {Array.from({ length: avaliacao.quality_entregaveis }).map((_, i) => (
                           <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
@@ -1267,6 +1546,21 @@ export default function AdminDashboard() {
         >
           <Star className="h-5 w-5" />
           Avaliações
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveSection("tasks")
+            setIsMobileMenuOpen(false)
+          }}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+            activeSection === "tasks"
+              ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <CheckSquare className="h-5 w-5" />
+          Tasks
         </button>
       </nav>
 
@@ -2115,6 +2409,934 @@ export default function AdminDashboard() {
     </div>
   )
 
+  const renderTasksSection = () => {
+    const filteredTasks = tasks.filter((task) => {
+      // Filtrar por arquivado
+      if (showArchivedTasks && !task.arquivado) return false
+      if (!showArchivedTasks && task.arquivado) return false
+
+      const matchesStatus = taskFilter === "todas" || task.status === taskFilter
+      const matchesSearch =
+        !taskSearchTerm ||
+        task.titulo.toLowerCase().includes(taskSearchTerm.toLowerCase()) ||
+        task.mentorado_nome?.toLowerCase().includes(taskSearchTerm.toLowerCase()) ||
+        task.atribuido_para?.toLowerCase().includes(taskSearchTerm.toLowerCase())
+
+      return matchesStatus && matchesSearch
+    })
+
+    const tasksByStatus = {
+      todo: filteredTasks.filter((t) => t.status === "todo"),
+      em_progresso: filteredTasks.filter((t) => t.status === "em_progresso"),
+      concluido: filteredTasks.filter((t) => t.status === "concluido"),
+    }
+
+    const getPriorityColor = (prioridade: string) => {
+      switch (prioridade) {
+        case "urgente":
+          return "text-red-600 bg-red-50 border-red-200"
+        case "alta":
+          return "text-orange-600 bg-orange-50 border-orange-200"
+        case "media":
+          return "text-yellow-600 bg-yellow-50 border-yellow-200"
+        case "baixa":
+          return "text-green-600 bg-green-50 border-green-200"
+        default:
+          return "text-gray-600 bg-gray-50 border-gray-200"
+      }
+    }
+
+    const getPriorityLabel = (prioridade: string) => {
+      switch (prioridade) {
+        case "urgente":
+          return "Urgente"
+        case "alta":
+          return "Alta"
+        case "media":
+          return "Média"
+        case "baixa":
+          return "Baixa"
+        default:
+          return prioridade
+      }
+    }
+
+    const getTagColor = (cor: string) => {
+      const colors: Record<string, string> = {
+        red: "bg-red-500",
+        blue: "bg-blue-500",
+        yellow: "bg-yellow-500",
+        green: "bg-green-500",
+        purple: "bg-purple-500",
+        gray: "bg-gray-500",
+        orange: "bg-orange-500",
+        pink: "bg-pink-500",
+      }
+      return colors[cor] || "bg-gray-500"
+    }
+
+    // Drag and Drop handlers
+    const handleDragStart = (e: React.DragEvent<HTMLDivElement>, task: any) => {
+      setDraggedTask(task)
+      e.dataTransfer.setData("text/plain", task.id.toString())
+    }
+
+    const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+      e.preventDefault()
+      e.currentTarget.classList.add("bg-blue-50", "border-blue-300")
+    }
+
+    const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+      e.currentTarget.classList.remove("bg-blue-50", "border-blue-300")
+    }
+
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>, newStatus: string) => {
+      e.preventDefault()
+      e.currentTarget.classList.remove("bg-blue-50", "border-blue-300")
+
+      if (draggedTask && draggedTask.status !== newStatus) {
+        await handleUpdateTaskStatus(draggedTask.id, newStatus)
+        setDraggedTask(null)
+      }
+    }
+
+    const renderTaskCard = (task: any) => {
+      // Calculate checklist progress
+      let checklistProgress = 0
+      if (task.total_checklist > 0) {
+        checklistProgress = (task.checklist_concluidos / task.total_checklist) * 100
+      }
+
+      return (
+        <Card
+          key={task.id}
+          draggable={!showArchivedTasks}
+          onDragStart={(e) => !showArchivedTasks && handleDragStart(e, task)}
+          onContextMenu={(e) => {
+            e.preventDefault()
+            setContextMenu({ x: e.clientX, y: e.clientY, task })
+          }}
+          className="mb-3 cursor-move hover:shadow-md transition-shadow relative"
+          onClick={() => {
+            setSelectedTask(task)
+            setShowTaskDetailModal(true)
+          }}
+        >
+          <div className="p-4">
+            <div className="flex items-start justify-between mb-2">
+              <h3 className="font-semibold text-gray-900 flex-1">{task.titulo}</h3>
+              <Badge className={`ml-2 ${getPriorityColor(task.prioridade)}`}>{getPriorityLabel(task.prioridade)}</Badge>
+            </div>
+
+            {task.descricao && <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.descricao}</p>}
+
+            {task.tags && task.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-3">
+                {task.tags.map((tag: any) => (
+                  <span
+                    key={tag.id}
+                    className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-white ${getTagColor(
+                      tag.cor,
+                    )}`}
+                  >
+                    <Tag className="h-3 w-3" />
+                    {tag.nome}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <div className="flex items-center gap-3">
+                {task.mentorado_nome && (
+                  <span className="flex items-center gap-1">
+                    <User className="h-3 w-3" />
+                    {task.mentorado_nome}
+                  </span>
+                )}
+                {task.atribuido_para && (
+                  <span className="flex items-center gap-1">
+                    <UserCheck className="h-3 w-3" />
+                    {task.atribuido_para}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {task.total_checklist > 0 && (
+                  <span className="flex items-center gap-1">
+                    <CheckSquare className="h-3 w-3" />
+                    {task.checklist_concluidos}/{task.total_checklist}
+                  </span>
+                )}
+                {task.horario && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3 w-3" />
+                    {task.horario}
+                  </span>
+                )}
+                {task.data_limite && (
+                  <span className="flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    {new Date(task.data_limite).toLocaleDateString()}
+                  </span>
+                )}
+                {task.anexos && task.anexos.length > 0 && (
+                  <span className="flex items-center gap-1">
+                    <Paperclip className="h-3 w-3" />
+                    {task.anexos.length}
+                  </span>
+                )}
+                {task.arquivado && (
+                  <span className="flex items-center gap-1 text-gray-400">
+                    <Archive className="h-3 w-3" />
+                    Arquivado
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {task.total_checklist > 0 && (
+              <div className="mt-2">
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div
+                    className="bg-blue-600 h-1.5 rounded-full transition-all"
+                    style={{ width: `${checklistProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
+      )
+    }
+
+    // Context menu functions
+    const handleEditTaskFromContext = (task: any) => {
+      setSelectedTask(task)
+      setShowTaskDetailModal(true)
+      setContextMenu(null)
+    }
+
+    const handleArchiveTask = async (taskId: number) => {
+      try {
+        const response = await fetch(`/api/admin/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ arquivado: true }),
+        })
+        if (response.ok) {
+          loadTasks()
+          setContextMenu(null)
+        }
+      } catch (error) {
+        console.error("Erro ao arquivar task:", error)
+      }
+    }
+
+    const handleUnarchiveTask = async (taskId: number) => {
+      try {
+        const response = await fetch(`/api/admin/tasks/${taskId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ arquivado: false }),
+        })
+        if (response.ok) {
+          loadTasks()
+          setContextMenu(null)
+        }
+      } catch (error) {
+        console.error("Erro ao desarquivar task:", error)
+      }
+    }
+
+    const handleDeleteTaskFromContext = async (taskId: number) => {
+      if (!confirm("Tem certeza que deseja deletar esta task?")) return
+      await handleDeleteTask(taskId)
+      setContextMenu(null)
+    }
+
+    return (
+      <div>
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-gray-900">Central de Tasks</h1>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowArchivedTasks(!showArchivedTasks)}
+              className="text-sm"
+            >
+              <Archive className="h-4 w-4 mr-2" />
+              {showArchivedTasks ? "Ver Tasks Ativas" : "Ver Arquivadas"}
+            </Button>
+          </div>
+          <Button onClick={() => setShowNewTaskModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Task
+          </Button>
+        </div>
+
+        <div className="mb-6">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Pesquisar por título, mentorado ou responsável..."
+              value={taskSearchTerm}
+              onChange={(e) => setTaskSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            {taskSearchTerm && (
+              <button
+                onClick={() => setTaskSearchTerm("")}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            {filteredTasks.length} task{filteredTasks.length !== 1 ? "s" : ""} encontrada
+            {filteredTasks.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+
+        {/* Adicionar loading state na renderização das tasks */}
+        {loadingTasks ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((col) => (
+              <div key={col} className="space-y-3">
+                <div className="bg-gray-100 rounded-lg p-4 animate-pulse">
+                  <div className="h-4 bg-gray-300 rounded w-3/4 mb-3"></div>
+                  <div className="h-3 bg-gray-300 rounded w-1/2"></div>
+                </div>
+                <div className="bg-gray-100 rounded-lg p-4 animate-pulse">
+                  <div className="h-4 bg-gray-300 rounded w-2/3 mb-3"></div>
+                  <div className="h-3 bg-gray-300 rounded w-1/3"></div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, "todo")}
+              className="min-h-[200px]"
+            >
+              <div className="bg-gray-100 rounded-lg p-3 mb-3">
+                <h2 className="font-semibold text-gray-700 flex items-center gap-2">
+                  <AlertCircle className="h-5 w-5" />A Fazer ({tasksByStatus.todo.length})
+                </h2>
+              </div>
+              {tasksByStatus.todo.map(renderTaskCard)}
+            </div>
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, "em_progresso")}
+              className="min-h-[200px]"
+            >
+              <div className="bg-blue-100 rounded-lg p-3 mb-3">
+                <h2 className="font-semibold text-blue-700 flex items-center gap-2">
+                  <Clock className="h-5 w-5" />
+                  Em Progresso ({tasksByStatus.em_progresso.length})
+                </h2>
+              </div>
+              {tasksByStatus.em_progresso.map(renderTaskCard)}
+            </div>
+
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={(e) => handleDrop(e, "concluido")}
+              className="min-h-[200px]"
+            >
+              <div className="bg-green-100 rounded-lg p-3 mb-3">
+                <h2 className="font-semibold text-green-700 flex items-center gap-2">
+                  <CheckCircle className="h-5 w-5" />
+                  Concluído ({tasksByStatus.concluido.length})
+                </h2>
+              </div>
+              {tasksByStatus.concluido.map(renderTaskCard)}
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Nova Task */}
+        {showNewTaskModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Nova Task</h2>
+                  <button onClick={() => setShowNewTaskModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
+                    <input
+                      type="text"
+                      id="task-titulo"
+                      value={newTask.titulo}
+                      onChange={(e) => setNewTask({ ...newTask, titulo: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Ex: Fazer call com Gabriel 61"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
+                    <textarea
+                      id="task-descricao"
+                      value={newTask.descricao}
+                      onChange={(e) => setNewTask({ ...newTask, descricao: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      rows={3}
+                      placeholder="Descreva a task..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Prioridade</label>
+                      <select
+                        id="task-prioridade"
+                        value={newTask.prioridade}
+                        onChange={(e) => setNewTask({ ...newTask, prioridade: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="baixa">Baixa</option>
+                        <option value="media">Média</option>
+                        <option value="alta">Alta</option>
+                        <option value="urgente">Urgente</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data Limite</label>
+                      <input
+                        type="date"
+                        id="task-data-limite"
+                        value={newTask.data_limite}
+                        onChange={(e) => setNewTask({ ...newTask, data_limite: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Atribuir para</label>
+                      <select
+                        id="task-atribuido"
+                        value={newTask.atribuido_para}
+                        onChange={(e) =>
+                          setNewTask({
+                            ...newTask,
+                            atribuido_para: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Selecione um admin</option>
+                        {admins.map((admin) => (
+                          <option key={admin.id} value={admin.nome}>
+                            {admin.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Mentorado</label>
+                      <select
+                        id="task-mentorado"
+                        value={newTask.mentorado_id || ""}
+                        onChange={(e) =>
+                          setNewTask({
+                            ...newTask,
+                            mentorado_id: e.target.value ? Number.parseInt(e.target.value) : null,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="">Nenhum</option>
+                        {mentorados.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.nome}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+                    <div className="flex flex-wrap gap-2">
+                      {taskTags.map((tag) => (
+                        <button
+                          key={tag.id}
+                          onClick={() => {
+                            const isSelected = selectedTags.includes(tag.id)
+                            setSelectedTags(
+                              isSelected ? selectedTags.filter((t) => t !== tag.id) : [...selectedTags, tag.id],
+                            )
+                            setNewTask({
+                              ...newTask,
+                              tags: isSelected ? newTask.tags.filter((t) => t !== tag.id) : [...newTask.tags, tag.id],
+                            })
+                          }}
+                          className={`px-3 py-1 rounded-full text-sm ${
+                            selectedTags.includes(tag.id)
+                              ? `${getTagColor(tag.cor)} text-white`
+                              : "bg-gray-100 text-gray-600"
+                          }`}
+                        >
+                          {tag.nome}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Checklist</label>
+                    <div className="space-y-2">
+                      {newTask.checklist.map((item, index) => (
+                        <div key={index} className="flex items-center gap-2 bg-gray-50 p-2 rounded">
+                          <CheckSquare className="h-4 w-4 text-gray-400" />
+                          <span className="flex-1">{item.texto}</span>
+                          <button
+                            onClick={() =>
+                              setNewTask({
+                                ...newTask,
+                                checklist: newTask.checklist.filter((_, i) => i !== index),
+                              })
+                            }
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newChecklistItem}
+                          onChange={(e) => setNewChecklistItem(e.target.value)}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter" && newChecklistItem.trim()) {
+                              setNewTask({
+                                ...newTask,
+                                checklist: [...newTask.checklist, { texto: newChecklistItem, concluido: false }],
+                              })
+                              setNewChecklistItem("")
+                            }
+                          }}
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                          placeholder="Adicionar item da checklist..."
+                        />
+                        <Button
+                          onClick={() => {
+                            if (newChecklistItem.trim()) {
+                              setNewTask({
+                                ...newTask,
+                                checklist: [...newTask.checklist, { texto: newChecklistItem, concluido: false }],
+                              })
+                              setNewChecklistItem("")
+                            }
+                          }}
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Horário</label>
+                    <input
+                      type="time"
+                      id="task-horario"
+                      value={newTask.horario}
+                      onChange={(e) => setNewTask({ ...newTask, horario: e.target.value })}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  {/* Adicionar campo de upload no modal de criar task */}
+                  <div className="mb-4">
+                    <Label htmlFor="task-files">Arquivos (opcional)</Label>
+                    <input
+                      type="file"
+                      multiple
+                      onChange={(e) => {
+                        const files = Array.from(e.target.files || [])
+                        if (files.length > 0) {
+                          // Converter arquivos para base64
+                          Promise.all(
+                            files.map((file) => {
+                              return new Promise<{ nome: string; data: string; tamanho: number }>((resolve) => {
+                                const reader = new FileReader()
+                                reader.onloadend = () => {
+                                  resolve({
+                                    nome: file.name,
+                                    data: reader.result as string,
+                                    tamanho: file.size,
+                                  })
+                                }
+                                reader.readAsDataURL(file)
+                              })
+                            }),
+                          ).then((anexos) => {
+                            setNewTask((prev) => ({
+                              ...prev,
+                              anexos: [...prev.anexos, ...anexos],
+                            }))
+                          })
+                        }
+                      }}
+                      className="hidden"
+                      id="new-task-files"
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => document.getElementById("new-task-files")?.click()}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Upload className="h-4 w-4 mr-2" />
+                      Adicionar Arquivos ({newTask.anexos.length})
+                    </Button>
+                    {newTask.anexos.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {newTask.anexos.map((anexo, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded"
+                          >
+                            <FileText className="h-3 w-3" />
+                            <span className="flex-1 truncate">{anexo.nome}</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewTask((prev) => ({
+                                  ...prev,
+                                  anexos: prev.anexos.filter((_, i) => i !== index),
+                                }))
+                              }}
+                              className="text-red-500 hover:text-red-700"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <Button onClick={() => setShowNewTaskModal(false)} variant="outline" className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleCreateTask} // Call the actual handleCreateTask function
+                    disabled={!newTask.titulo}
+                    className="flex-1"
+                  >
+                    Criar Task
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showTaskDetailModal && selectedTask && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h2 className="text-2xl font-bold mb-2">{selectedTask.titulo}</h2>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className={getPriorityColor(selectedTask.prioridade)}>
+                        {getPriorityLabel(selectedTask.prioridade)}
+                      </Badge>
+                      {selectedTask.tags &&
+                        selectedTask.tags.map((tag: any) => (
+                          <span
+                            key={tag.id}
+                            className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs text-white ${getTagColor(
+                              tag.cor,
+                            )}`}
+                          >
+                            {tag.nome}
+                          </span>
+                        ))}
+                    </div>
+                  </div>
+                  <button onClick={() => setShowTaskDetailModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                {/* ... existing task details ... */}
+                <div className="space-y-4">
+                  {/* Status */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <select
+                      value={selectedTask.status}
+                      onChange={(e) => {
+                        handleUpdateTaskStatus(selectedTask.id, e.target.value)
+                        setSelectedTask({
+                          ...selectedTask,
+                          status: e.target.value,
+                        })
+                      }}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                    >
+                      <option value="todo">A Fazer</option>
+                      <option value="em_progresso">Em Progresso</option>
+                      <option value="concluido">Concluído</option>
+                      <option value="cancelado">Cancelado</option>
+                    </select>
+                  </div>
+
+                  {/* Descrição */}
+                  {selectedTask.descricao && (
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">Descrição</h3>
+                      <p className="text-gray-600">{selectedTask.descricao}</p>
+                    </div>
+                  )}
+
+                  {/* Informações */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedTask.atribuido_para && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Atribuído para</h3>
+                        <p className="text-gray-600">{selectedTask.atribuido_para}</p>
+                      </div>
+                    )}
+                    {selectedTask.mentorado_nome && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Mentorado</h3>
+                        <p className="text-gray-600">{selectedTask.mentorado_nome}</p>
+                      </div>
+                    )}
+                    {selectedTask.data_limite && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Data Limite</h3>
+                        <p className="text-gray-600">{new Date(selectedTask.data_limite).toLocaleDateString()}</p>
+                      </div>
+                    )}
+                    {selectedTask.horario && (
+                      <div>
+                        <h3 className="font-semibold text-gray-900 mb-1">Horário</h3>
+                        <p className="text-gray-600">{selectedTask.horario}</p>
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-1">Criado em</h3>
+                      <p className="text-gray-600">{new Date(selectedTask.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
+
+                  {/* Checklist */}
+                  {selectedTask.checklist && selectedTask.checklist.length > 0 && (
+                    <div>
+                      <h3 className="font-semibold text-gray-900 mb-2">
+                        Checklist ({selectedTask.checklist_concluidos}/{selectedTask.total_checklist})
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedTask.checklist.map((item: any, index: number) => (
+                          <div key={item.id} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={item.concluido}
+                              onChange={() => handleToggleChecklistItem(selectedTask.id, index)}
+                              className="h-4 w-4 text-blue-600 rounded"
+                            />
+                            <span
+                              className={`flex-1 ${item.concluido ? "line-through text-gray-400" : "text-gray-700"}`}
+                            >
+                              {item.texto}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Paperclip className="h-4 w-4" />
+                      Anexos ({selectedTask.anexos?.length || 0})
+                    </h3>
+
+                    <div className="space-y-2 mb-3">
+                      {selectedTask.anexos?.map((anexo: any, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200"
+                        >
+                          <FileText className="h-4 w-4 text-gray-500" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-gray-900">{anexo.nome}</p>
+                            <p className="text-xs text-gray-500">{(anexo.tamanho / 1024).toFixed(2)} KB</p>
+                          </div>
+                          <a
+                            href={anexo.data}
+                            download={anexo.nome}
+                            className="text-blue-600 hover:text-blue-700 text-sm"
+                          >
+                            <Download className="h-4 w-4" />
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+
+                    <label className="block">
+                      <input
+                        type="file"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handleFileUpload(selectedTask.id, file)
+                          }
+                        }}
+                        disabled={uploadingFile}
+                        className="hidden"
+                        id="task-file-upload"
+                      />
+                      <Button
+                        onClick={() => document.getElementById("task-file-upload")?.click()}
+                        disabled={uploadingFile}
+                        variant="outline"
+                        className="w-full"
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        {uploadingFile ? "Enviando..." : "Adicionar Arquivo"}
+                      </Button>
+                    </label>
+                  </div>
+
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4" />
+                      Comentários ({selectedTask.comentarios?.length || 0})
+                    </h3>
+
+                    <div className="space-y-3 mb-4">
+                      {selectedTask.comentarios?.map((comment: any) => (
+                        <div key={comment.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-semibold text-gray-900">{comment.autor}</span>
+                            <span className="text-xs text-gray-500">
+                              {new Date(comment.created_at).toLocaleString()}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">{comment.comentario}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="Adicionar um comentário..."
+                        id="task-comment-input"
+                        className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleAddComment(selectedTask.id)
+                          }
+                        }}
+                      />
+                      <Button onClick={() => handleAddComment(selectedTask.id)}>
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <Button
+                    onClick={() => handleDeleteTask(selectedTask.id)}
+                    variant="outline"
+                    className="text-red-600 border-red-200"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Deletar
+                  </Button>
+                  <Button onClick={() => setShowTaskDetailModal(false)} className="flex-1">
+                    Fechar
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {contextMenu && (
+          <div
+            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[100]"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => handleEditTaskFromContext(contextMenu.task)}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+            >
+              <Edit2 className="h-4 w-4" />
+              Editar
+            </button>
+            <button
+              onClick={() =>
+                showArchivedTasks ? handleUnarchiveTask(contextMenu.task.id) : handleArchiveTask(contextMenu.task.id)
+              }
+              className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+            >
+              <Archive className="h-4 w-4" />
+              {showArchivedTasks ? "Desarquivar" : "Arquivar"}
+            </button>
+            <button
+              onClick={() => handleDeleteTaskFromContext(contextMenu.task.id)}
+              className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 text-red-600 flex items-center gap-2"
+            >
+              <Trash2 className="h-4 w-4" />
+              Excluir
+            </button>
+          </div>
+        )}
+        {/* Adicionar loading overlay durante upload */}
+        {uploadingFile && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 shadow-xl flex flex-col items-center gap-4">
+              <div className="relative">
+                <div className="animate-spin rounded-full h-16 w-16 border-4 border-gray-200 border-t-blue-600"></div>
+                <Upload className="h-6 w-6 text-blue-600 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+              </div>
+              <div className="text-center">
+                <p className="font-semibold text-gray-900">Enviando arquivo...</p>
+                <p className="text-sm text-gray-500">Por favor, aguarde</p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -2179,6 +3401,7 @@ export default function AdminDashboard() {
             {activeSection === "historico" && renderHistoricoSection()}
             {/* Adicionando renderização da seção de avaliações */}
             {activeSection === "avaliacoes" && renderAvaliacoes()}
+            {activeSection === "tasks" && renderTasksSection()}
           </div>
         </main>
       </div>
