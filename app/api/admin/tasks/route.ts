@@ -168,8 +168,9 @@ export async function POST(request: Request) {
         prioridade: prioridade || "media",
         atribuido_para,
         mentorado_nome,
-        data_limite: dataFormatada,
+        data_limite,
         horario,
+        checklist,
       })
 
       const logInicial = await sql`

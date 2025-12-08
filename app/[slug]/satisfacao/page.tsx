@@ -51,7 +51,13 @@ export default function AvaliacaoSatisfacao() {
         const response = await fetch(`/api/mentorado/${slug}`)
         if (response.ok) {
           const data = await response.json()
-          setMentoradoData(data)
+          if (data && data.mentorado && data.mentorado.id) {
+            setMentoradoData(data)
+          } else {
+            console.error("[v0] Dados do mentorado inválidos:", data)
+            localStorage.removeItem("mentorado_token")
+            router.push(`/${slug}/login`)
+          }
         } else {
           localStorage.removeItem("mentorado_token")
           router.push(`/${slug}/login`)
@@ -78,9 +84,18 @@ export default function AvaliacaoSatisfacao() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!mentoradoData || !mentoradoData.mentorado || !mentoradoData.mentorado.id) {
+      console.error("[v0] Dados do mentorado não carregados")
+      alert("Erro: Dados do mentorado não encontrados. Faça login novamente.")
+      return
+    }
+
     setSubmitting(true)
 
     try {
+      console.log("[v0] Enviando avaliação para mentorado_id:", mentoradoData.mentorado.id)
+
       const response = await fetch(`/api/mentorado/${slug}/avaliacao`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -96,6 +111,8 @@ export default function AvaliacaoSatisfacao() {
           router.push(`/${slug}`)
         }, 3000)
       } else {
+        const errorData = await response.json()
+        console.error("[v0] Erro ao enviar avaliação:", errorData)
         alert("Erro ao enviar avaliação. Tente novamente.")
       }
     } catch (error) {

@@ -53,12 +53,15 @@ import { ptBR } from "date-fns/locale" // Added ptBR locale for date-fns
 import { Badge } from "@/components/ui/badge" // Added Badge for Avaliações
 import { Label } from "@/components/ui/label" // Added Label for Task form
 import WhatsAppTest from "@/components/whatsapp-test"
+import MinhasDemandas from "@/components/minhas-demandas"
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+
+  const [adminEmail, setAdminEmail] = useState<string>("")
 
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showCreateMeetingModal, setShowCreateMeetingModal] = useState(false)
@@ -419,10 +422,14 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    const token = localStorage.getItem("admin_token")
-    const adminEmail = localStorage.getItem("admin_email")
+    const email = localStorage.getItem("admin_email") || "fellipe.otani12@gmail.com"
+    setAdminEmail(email)
 
-    if (!token || !adminEmail) {
+    const token = localStorage.getItem("admin_token")
+    // const adminEmail = localStorage.getItem("admin_email") // REMOVED: already fetched and set above
+
+    if (!token || !email) {
+      // Changed from !adminEmail to !email
       router.push("/admin/igamingrat/login")
       return
     }
@@ -1618,6 +1625,16 @@ export default function AdminDashboard() {
           <MessageSquare className="h-5 w-5" />
           WhatsApp
         </button>
+
+        <button
+          onClick={() => setActiveSection("minhas-demandas")}
+          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+            activeSection === "minhas-demandas" ? "bg-blue-600 text-white" : "text-gray-700 hover:bg-gray-100"
+          }`}
+        >
+          <CheckSquare className="h-5 w-5" />
+          Minhas Demandas
+        </button>
       </nav>
 
       <div className="absolute bottom-4 left-4 right-4">
@@ -2619,8 +2636,8 @@ export default function AdminDashboard() {
                   </span>
                 )}
                 {task.atribuido_para && (
-                  <span className="flex items-center gap-1">
-                    <UserCheck className="h-3 w-3" />
+                  <span className="flex items-center gap-1 font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                    <UserCheck className="h-4 w-4" />
                     {task.atribuido_para}
                   </span>
                 )}
@@ -3474,6 +3491,19 @@ export default function AdminDashboard() {
         return renderAvaliacoes()
       case "tasks":
         return renderTasksSection()
+      // Renderizando componente Minhas Demandas
+      case "minhas-demandas":
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Minhas Demandas</h2>
+                <p className="text-gray-600">Tasks e reuniões atribuídas a você</p>
+              </div>
+            </div>
+            <MinhasDemandas adminEmail={adminEmail} />
+          </div>
+        )
       default:
         return <div className="p-6 text-center text-gray-500">Seção não encontrada.</div>
     }

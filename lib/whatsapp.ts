@@ -20,13 +20,22 @@ export interface WhatsAppResponse {
   response?: any
 }
 
-export function formatarDataHora(dataString: string): { data: string; horario: string } {
+export function formatarDataHora(dataString: string, horario?: string): { data: string; horario: string } {
   try {
-    const date = new Date(dataString)
+    let date: Date
+
+    // Se tem horário separado, combina data + horário
+    if (horario) {
+      const [year, month, day] = dataString.split("-")
+      const [hours, minutes] = horario.split(":")
+      date = new Date(Number(year), Number(month) - 1, Number(day), Number(hours), Number(minutes))
+    } else {
+      date = new Date(dataString)
+    }
 
     // Verifica se a data é válida
     if (isNaN(date.getTime())) {
-      return { data: dataString, horario: "" }
+      return { data: dataString, horario: horario || "" }
     }
 
     // Formata data: DD/MM/YYYY
@@ -43,7 +52,7 @@ export function formatarDataHora(dataString: string): { data: string; horario: s
     return { data: dataFormatada, horario: horarioFormatado }
   } catch (error) {
     console.error("[v0] Erro ao formatar data:", error)
-    return { data: dataString, horario: "" }
+    return { data: dataString, horario: horario || "" }
   }
 }
 
@@ -135,9 +144,13 @@ export function formatarMensagemTask(dados: {
   mentorado_nome?: string
   data_limite?: string
   horario?: string
+  checklist?: Array<{ texto: string; concluido: boolean }>
 }): string {
-  const { titulo, descricao, prioridade, atribuido_para, mentorado_nome, data_limite, horario } = dados
-  const { data: dataFormatada, horario: horarioFormatado } = formatarDataHora(data_limite || "")
+  const { titulo, descricao, prioridade, atribuido_para, mentorado_nome, data_limite, horario, checklist } = dados
+
+  const { data: dataFormatada, horario: horarioFormatado } = data_limite
+    ? formatarDataHora(data_limite, horario)
+    : { data: "", horario: "" }
 
   const emojiPrioridade = {
     urgente: "🔴",
@@ -162,12 +175,20 @@ export function formatarMensagemTask(dados: {
     mensagem += `🎯 *Mentorado:* ${mentorado_nome}\n`
   }
 
-  if (dataFormatada && horarioFormatado) {
+  if (dataFormatada) {
     mensagem += `📅 *Prazo:* ${dataFormatada}`
-    if (horarioFormatado) {
+    if (horarioFormatado && horarioFormatado !== "00:00") {
       mensagem += ` às ${horarioFormatado}`
     }
     mensagem += `\n`
+  }
+
+  if (checklist && checklist.length > 0) {
+    mensagem += `\n✅ *Checklist (${checklist.filter((item) => item.concluido).length}/${checklist.length}):*\n`
+    checklist.forEach((item) => {
+      const emoji = item.concluido ? "✅" : "⬜"
+      mensagem += `${emoji} ${item.texto}\n`
+    })
   }
 
   return mensagem
@@ -367,7 +388,10 @@ export function formatarComentarioTask(dados: {
     mencionados,
   } = dados
   const nomeAutor = autor_email ? getAdminNomePorEmail(autor_email) : autor
-  const { data: dataFormatada, horario: horarioFormatado } = formatarDataHora(data_limite || "")
+
+  const { data: dataFormatada, horario: horarioFormatado } = data_limite
+    ? formatarDataHora(data_limite, horario)
+    : { data: "", horario: "" }
 
   let mensagem = `💬 *Novo Comentário em Task*\n\n`
   mensagem += `📝 *Task:* ${titulo}\n`
@@ -380,9 +404,9 @@ export function formatarComentarioTask(dados: {
     mensagem += `🎯 *Mentorado:* ${mentorado_nome}\n`
   }
 
-  if (dataFormatada && horarioFormatado) {
+  if (dataFormatada) {
     mensagem += `📅 *Prazo:* ${dataFormatada}`
-    if (horarioFormatado) {
+    if (horarioFormatado && horarioFormatado !== "00:00") {
       mensagem += ` às ${horarioFormatado}`
     }
     mensagem += `\n`
@@ -433,7 +457,10 @@ export function formatarAlteracaoStatusTask(dados: {
     horario,
     checklist,
   } = dados
-  const { data: dataFormatada, horario: horarioFormatado } = formatarDataHora(data_limite || "")
+
+  const { data: dataFormatada, horario: horarioFormatado } = data_limite
+    ? formatarDataHora(data_limite, horario)
+    : { data: "", horario: "" }
 
   const emojiStatus: Record<string, string> = {
     todo: "📋",
@@ -462,9 +489,9 @@ export function formatarAlteracaoStatusTask(dados: {
     mensagem += `👤 *Atribuído para:* ${atribuido_para}\n`
   }
 
-  if (dataFormatada && horarioFormatado) {
+  if (dataFormatada) {
     mensagem += `📅 *Prazo:* ${dataFormatada}`
-    if (horarioFormatado) {
+    if (horarioFormatado && horarioFormatado !== "00:00") {
       mensagem += ` às ${horarioFormatado}`
     }
     mensagem += `\n`
@@ -500,7 +527,10 @@ export function formatarEdicaoTask(dados: {
   checklist?: Array<{ texto: string; concluido: boolean }>
 }): string {
   const { titulo, descricao, alteracoes, atribuido_para, mentorado_nome, data_limite, horario, checklist } = dados
-  const { data: dataFormatada, horario: horarioFormatado } = formatarDataHora(data_limite || "")
+
+  const { data: dataFormatada, horario: horarioFormatado } = data_limite
+    ? formatarDataHora(data_limite, horario)
+    : { data: "", horario: "" }
 
   let mensagem = `✏️ *Task Editada*\n\n`
   mensagem += `📝 *Task:* ${titulo}\n`
@@ -517,9 +547,9 @@ export function formatarEdicaoTask(dados: {
     mensagem += `👤 *Atribuído para:* ${atribuido_para}\n`
   }
 
-  if (dataFormatada && horarioFormatado) {
+  if (dataFormatada) {
     mensagem += `📅 *Prazo:* ${dataFormatada}`
-    if (horarioFormatado) {
+    if (horarioFormatado && horarioFormatado !== "00:00") {
       mensagem += ` às ${horarioFormatado}`
     }
     mensagem += `\n`
