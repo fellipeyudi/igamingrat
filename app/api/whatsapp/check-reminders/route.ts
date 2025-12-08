@@ -39,9 +39,9 @@ export async function GET() {
           AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_30min_enviado = FALSE
           AND r.horario::time BETWEEN 
-            (NOW() + INTERVAL '25 minutes') 
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '25 minutes') 
             AND 
-            (NOW() + INTERVAL '35 minutes')
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '35 minutes')
       `
 
       for (const reuniao of reunioes30min) {
@@ -111,9 +111,9 @@ export async function GET() {
           AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_inicio_enviado = FALSE
           AND r.horario::time BETWEEN 
-            (NOW() - INTERVAL '2 minutes') 
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time - INTERVAL '2 minutes') 
             AND 
-            (NOW() + INTERVAL '2 minutes')
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '2 minutes')
       `
 
       for (const reuniao of reunioesAgora) {
@@ -185,9 +185,9 @@ export async function GET() {
           AND t.horario_limite IS NOT NULL
           AND t.lembrete_10min_enviado = FALSE
           AND t.horario_limite BETWEEN 
-            (NOW() + INTERVAL '5 minutes') 
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '5 minutes') 
             AND 
-            (NOW() + INTERVAL '15 minutes')
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '15 minutes')
       `
 
       for (const task of tasks10min) {
@@ -261,9 +261,9 @@ export async function GET() {
           AND t.horario_limite IS NOT NULL
           AND t.lembrete_vencimento_enviado = FALSE
           AND t.horario_limite BETWEEN 
-            (NOW() - INTERVAL '2 minutes') 
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time - INTERVAL '2 minutes') 
             AND 
-            (NOW() + INTERVAL '2 minutes')
+            ((NOW() AT TIME ZONE 'America/Sao_Paulo')::time + INTERVAL '2 minutes')
       `
 
       for (const task of tasksVencidas) {
