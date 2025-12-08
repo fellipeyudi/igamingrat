@@ -34,7 +34,7 @@ export async function GET() {
         r.meet_link,
         m.nome as mentorado_nome,
         r.mentorado_id
-      FROM reunioes r
+      FROM meetings r
       JOIN mentorados m ON r.mentorado_id = m.id
       WHERE 
         r.status = 'agendada'
@@ -72,7 +72,7 @@ export async function GET() {
         `
 
         await sql`
-          UPDATE reunioes
+          UPDATE meetings
           SET lembrete_30min_enviado = TRUE
           WHERE id = ${reuniao.id}
         `
@@ -103,7 +103,7 @@ export async function GET() {
         r.meet_link,
         m.nome as mentorado_nome,
         r.mentorado_id
-      FROM reunioes r
+      FROM meetings r
       JOIN mentorados m ON r.mentorado_id = m.id
       WHERE 
         r.status = 'agendada'
@@ -140,7 +140,7 @@ export async function GET() {
         `
 
         await sql`
-          UPDATE reunioes
+          UPDATE meetings
           SET lembrete_inicio_enviado = TRUE
           WHERE id = ${reuniao.id}
         `
