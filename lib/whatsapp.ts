@@ -121,13 +121,12 @@ export function formatarMensagemReuniao(dados: {
   meet_link?: string
 }): string {
   const { mentorado_nome, titulo, data, horario, meet_link } = dados
-  const { data: dataFormatada, horario: horarioFormatado } = formatarDataHora(data)
 
   let mensagem = `🎯 *Nova Reunião Agendada*\n\n`
   mensagem += `👤 *Mentorado:* ${mentorado_nome}\n`
   mensagem += `📋 *Título:* ${titulo}\n`
-  mensagem += `📅 *Data:* ${dataFormatada}\n`
-  mensagem += `⏰ *Horário:* ${horarioFormatado}\n`
+  mensagem += `📅 *Data:* ${data}\n`
+  mensagem += `⏰ *Horário:* ${horario}\n`
 
   if (meet_link) {
     mensagem += `\n🔗 *Link da Reunião:*\n${meet_link}`
@@ -228,12 +227,11 @@ export function formatarLembreteReuniao(dados: {
   minutos: number
 }): string {
   const { mentorado_nome, titulo, horario, meet_link, minutos } = dados
-  const { horario: horarioFormatado } = formatarDataHora(horario)
 
   let mensagem = `⏰ *Lembrete: Reunião em ${minutos} minutos!*\n\n`
   mensagem += `👤 *Mentorado:* ${mentorado_nome}\n`
   mensagem += `📋 *Título:* ${titulo}\n`
-  mensagem += `⏰ *Horário:* ${horarioFormatado}\n`
+  mensagem += `⏰ *Horário:* ${horario}\n`
 
   if (meet_link) {
     mensagem += `\n🔗 *Link da Reunião:*\n${meet_link}`
@@ -328,12 +326,11 @@ export function formatarReuniaoAgora(dados: {
   meet_link?: string
 }): string {
   const { mentorado_nome, titulo, horario, meet_link } = dados
-  const { horario: horarioFormatado } = formatarDataHora(horario)
 
   let mensagem = `🚨 *AGORA: Reunião começando!*\n\n`
   mensagem += `👤 *Mentorado:* ${mentorado_nome}\n`
   mensagem += `📋 *Título:* ${titulo}\n`
-  mensagem += `⏰ *Horário:* ${horarioFormatado}\n`
+  mensagem += `⏰ *Horário:* ${horario}\n`
 
   if (meet_link) {
     mensagem += `\n🔗 *Entre na reunião:*\n${meet_link}`
