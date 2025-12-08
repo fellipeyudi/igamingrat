@@ -34,20 +34,22 @@ export async function GET() {
           r.id,
           r.titulo,
           r.horario,
+          r.data,
           r.meet_link,
           m.nome as mentorado_nome,
           r.mentorado_id
-        FROM meetings r
+        FROM reunioes r
         JOIN mentorados m ON r.mentorado_id = m.id
         WHERE 
           r.status = 'agendada'
-          AND DATE(r.data AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+          AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_30min_enviado = FALSE
           AND r.horario::time BETWEEN (CURRENT_TIME + INTERVAL '25 minutes') AND (CURRENT_TIME + INTERVAL '35 minutes')
       `
 
-      console.log(`[v0] Reuniões para lembrete 30min: ${reunioes30min.length}`)
-      console.log(`[v0] Hora atual do servidor: ${new Date().toISOString()}`)
+      console.log(`[v0] Reuniões para lembrete 30min encontradas: ${reunioes30min.length}`)
+      console.log(`[v0] Hora atual do servidor (UTC): ${new Date().toISOString()}`)
+      console.log(`[v0] CURRENT_TIME no banco: será usado para comparação`)
 
       for (const reuniao of reunioes30min) {
         try {
@@ -76,7 +78,7 @@ export async function GET() {
           `
 
           await sql`
-            UPDATE meetings
+            UPDATE reunioes
             SET lembrete_30min_enviado = TRUE
             WHERE id = ${reuniao.id}
           `
@@ -110,14 +112,15 @@ export async function GET() {
           r.id,
           r.titulo,
           r.horario,
+          r.data,
           r.meet_link,
           m.nome as mentorado_nome,
           r.mentorado_id
-        FROM meetings r
+        FROM reunioes r
         JOIN mentorados m ON r.mentorado_id = m.id
         WHERE 
           r.status = 'agendada'
-          AND DATE(r.data AT TIME ZONE 'America/Sao_Paulo') = CURRENT_DATE
+          AND DATE(r.data) = CURRENT_DATE
           AND r.lembrete_inicio_enviado = FALSE
           AND r.horario::time BETWEEN (CURRENT_TIME - INTERVAL '2 minutes') AND (CURRENT_TIME + INTERVAL '2 minutes')
       `
@@ -150,7 +153,7 @@ export async function GET() {
           `
 
           await sql`
-            UPDATE meetings
+            UPDATE reunioes
             SET lembrete_inicio_enviado = TRUE
             WHERE id = ${reuniao.id}
           `
