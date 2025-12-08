@@ -15,15 +15,6 @@ const sql = neon(
 
 export async function GET() {
   try {
-    console.log("[v0] ==========================================")
-    console.log("[v0] VERIFICANDO LEMBRETES DE CALLS E TASKS")
-    console.log("[v0] ==========================================")
-
-    const now = new Date()
-    const brasiliaTime = new Date(now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }))
-    console.log("[v0] Hora atual UTC:", now.toISOString())
-    console.log("[v0] Hora atual Brasília:", brasiliaTime.toISOString())
-
     const resultados = {
       reunioes_30min: [] as any[],
       reunioes_agora: [] as any[],
@@ -31,9 +22,7 @@ export async function GET() {
       tasks_vencidas: [] as any[],
     }
 
-    // Verificar reuniões 30min antes
     try {
-      console.log("[v0] Buscando reuniões para lembrete de 30 minutos...")
       const reunioes30min = await sql`
         SELECT 
           r.id,
@@ -54,10 +43,6 @@ export async function GET() {
             AND 
             ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '35 minutes')
       `
-
-      console.log(`[v0] Reuniões para lembrete 30min encontradas: ${reunioes30min.length}`)
-      console.log(`[v0] Hora atual do servidor (UTC): ${new Date().toISOString()}`)
-      console.log(`[v0] CURRENT_TIME no banco: será usado para comparação`)
 
       for (const reuniao of reunioes30min) {
         try {
@@ -96,10 +81,7 @@ export async function GET() {
             titulo: reuniao.titulo,
             sucesso: resultado.success,
           })
-
-          console.log(`[v0] Lembrete 30min enviado para reunião ${reuniao.id}:`, resultado.success)
         } catch (error: any) {
-          console.error(`[v0] Erro ao enviar lembrete 30min reunião ${reuniao.id}:`, error.message)
           resultados.reunioes_30min.push({
             id: reuniao.id,
             titulo: reuniao.titulo,
@@ -109,12 +91,10 @@ export async function GET() {
         }
       }
     } catch (error: any) {
-      console.error("[v0] Erro ao buscar reuniões 30min:", error.message, error.stack)
+      console.error("[v0] Erro ao buscar reuniões 30min:", error.message)
     }
 
-    // Verificar reuniões começando agora
     try {
-      console.log("[v0] Buscando reuniões começando agora...")
       const reunioesAgora = await sql`
         SELECT 
           r.id,
@@ -135,8 +115,6 @@ export async function GET() {
             AND 
             ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '2 minutes')
       `
-
-      console.log(`[v0] Reuniões começando agora: ${reunioesAgora.length}`)
 
       for (const reuniao of reunioesAgora) {
         try {
@@ -174,10 +152,7 @@ export async function GET() {
             titulo: reuniao.titulo,
             sucesso: resultado.success,
           })
-
-          console.log(`[v0] Lembrete AGORA enviado para reunião ${reuniao.id}:`, resultado.success)
         } catch (error: any) {
-          console.error(`[v0] Erro ao enviar lembrete AGORA reunião ${reuniao.id}:`, error.message)
           resultados.reunioes_agora.push({
             id: reuniao.id,
             titulo: reuniao.titulo,
@@ -187,12 +162,10 @@ export async function GET() {
         }
       }
     } catch (error: any) {
-      console.error("[v0] Erro ao buscar reuniões agora:", error.message, error.stack)
+      console.error("[v0] Erro ao buscar reuniões agora:", error.message)
     }
 
-    // Verificar tasks 10min antes
     try {
-      console.log("[v0] Buscando tasks para lembrete de 10 minutos...")
       const tasks10min = await sql`
         SELECT 
           t.id,
@@ -216,8 +189,6 @@ export async function GET() {
             AND 
             ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '15 minutes')
       `
-
-      console.log(`[v0] Tasks para lembrete 10min: ${tasks10min.length}`)
 
       for (const task of tasks10min) {
         try {
@@ -257,10 +228,7 @@ export async function GET() {
             titulo: task.titulo,
             sucesso: resultado.success,
           })
-
-          console.log(`[v0] Lembrete 10min enviado para task ${task.id}:`, resultado.success)
         } catch (error: any) {
-          console.error(`[v0] Erro ao enviar lembrete 10min task ${task.id}:`, error.message)
           resultados.tasks_10min.push({
             id: task.id,
             titulo: task.titulo,
@@ -270,12 +238,10 @@ export async function GET() {
         }
       }
     } catch (error: any) {
-      console.error("[v0] Erro ao buscar tasks 10min:", error.message, error.stack)
+      console.error("[v0] Erro ao buscar tasks 10min:", error.message)
     }
 
-    // Verificar tasks vencidas
     try {
-      console.log("[v0] Buscando tasks vencendo agora...")
       const tasksVencidas = await sql`
         SELECT 
           t.id,
@@ -299,8 +265,6 @@ export async function GET() {
             AND 
             ((CURRENT_TIME AT TIME ZONE 'UTC' AT TIME ZONE 'America/Sao_Paulo') + INTERVAL '2 minutes')
       `
-
-      console.log(`[v0] Tasks vencendo agora: ${tasksVencidas.length}`)
 
       for (const task of tasksVencidas) {
         try {
@@ -339,10 +303,7 @@ export async function GET() {
             titulo: task.titulo,
             sucesso: resultado.success,
           })
-
-          console.log(`[v0] Alerta de vencimento enviado para task ${task.id}:`, resultado.success)
         } catch (error: any) {
-          console.error(`[v0] Erro ao enviar alerta de vencimento task ${task.id}:`, error.message)
           resultados.tasks_vencidas.push({
             id: task.id,
             titulo: task.titulo,
@@ -352,12 +313,8 @@ export async function GET() {
         }
       }
     } catch (error: any) {
-      console.error("[v0] Erro ao buscar tasks vencidas:", error.message, error.stack)
+      console.error("[v0] Erro ao buscar tasks vencidas:", error.message)
     }
-
-    console.log("[v0] ==========================================")
-    console.log("[v0] VERIFICAÇÃO DE LEMBRETES CONCLUÍDA")
-    console.log("[v0] ==========================================")
 
     const total =
       resultados.reunioes_30min.length +
@@ -370,11 +327,7 @@ export async function GET() {
       resultados,
     })
   } catch (error: any) {
-    console.error("[v0] Erro CRÍTICO ao verificar lembretes:", {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-    })
+    console.error("[v0] Erro ao verificar lembretes:", error.message)
     return NextResponse.json(
       {
         error: "Erro ao verificar lembretes",

@@ -826,6 +826,28 @@ export default function AdminDashboard() {
     })
   }
 
+  // CHANGE: Nova função para gerar slots dinâmicos baseados nas reuniões reais
+  const generateDynamicTimeSlots = () => {
+    const slots = new Set<string>()
+
+    // Adicionar todos os horários fixos de 30 em 30 minutos
+    for (let hour = 0; hour <= 23; hour++) {
+      for (let minute = 0; minute < 60; minute += 30) {
+        const time = `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`
+        slots.add(time)
+      }
+    }
+
+    // Adicionar horários específicos das reuniões que existem
+    meetings.forEach((meeting) => {
+      const meetingTime = meeting.horario.slice(0, 5) // Pega apenas HH:MM
+      slots.add(meetingTime)
+    })
+
+    // Converter para array e ordenar
+    return Array.from(slots).sort()
+  }
+
   const generateTimeSlots = () => {
     const slots = []
     for (let hour = 0; hour <= 23; hour++) {
@@ -1648,6 +1670,20 @@ export default function AdminDashboard() {
   const renderAgendaSection = () => {
     const filteredMeetings = meetings
 
+    console.log("[v0] Renderizando agenda - Total de reuniões:", meetings.length)
+    console.log(
+      "[v0] Reuniões para hoje:",
+      meetings.map((m) => ({
+        id: m.id,
+        horario: m.horario,
+        duracao: m.duracao,
+        data: m.data,
+      })),
+    )
+
+    // CHANGE: Usar slots dinâmicos ao invés de timeSlots fixos
+    const dynamicTimeSlots = generateDynamicTimeSlots()
+
     return (
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-col sm:items-center justify-between gap-4">
@@ -1782,13 +1818,13 @@ export default function AdminDashboard() {
             ) : (
               <div className="max-h-[600px] overflow-y-auto">
                 <div className="divide-y divide-gray-100">
-                  {timeSlots.map((slot) => {
+                  {/* CHANGE: Usar dynamicTimeSlots ao invés de timeSlots fixos */}
+                  {dynamicTimeSlots.map((slot) => {
                     const slotMeetings = getMeetingsForSlot(slot)
                     const isOccupied = slotMeetings.length > 0
 
                     const hasNewMeetingStartingHere = meetings.some((meeting) => meeting.horario.slice(0, 5) === slot)
 
-                    // Skip rendering only if this slot is occupied AND no new meeting starts here
                     const isWithinPreviousMeeting = meetings.some((meeting) => {
                       const meetingStart = meeting.horario.slice(0, 5)
                       const meetingEndMinutes =
@@ -1799,7 +1835,6 @@ export default function AdminDashboard() {
                       return slot > meetingStart && slot < meetingEndTime
                     })
 
-                    // Só pula se estiver dentro de uma reunião E não houver nova reunião começando aqui
                     if (isWithinPreviousMeeting && !hasNewMeetingStartingHere) return null
 
                     return (
@@ -1816,6 +1851,13 @@ export default function AdminDashboard() {
                               {slotMeetings.map((meeting) => {
                                 const slotSpan = Math.ceil(meeting.duracao / 30)
                                 const cardHeight = slotSpan * 48 - 8
+
+                                console.log("[v0] Renderizando meeting:", {
+                                  id: meeting.id,
+                                  horario: meeting.horario,
+                                  slot: slot,
+                                  duracao: meeting.duracao,
+                                })
 
                                 const isCompleted = meeting.status === "concluida"
 

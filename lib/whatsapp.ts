@@ -24,7 +24,6 @@ export function formatarDataHora(dataString: string, horario?: string): { data: 
   try {
     let date: Date
 
-    // Se tem horário separado, combina data + horário
     if (horario) {
       const [year, month, day] = dataString.split("-")
       const [hours, minutes] = horario.split(":")
@@ -33,46 +32,33 @@ export function formatarDataHora(dataString: string, horario?: string): { data: 
       date = new Date(dataString)
     }
 
-    // Verifica se a data é válida
     if (isNaN(date.getTime())) {
       return { data: dataString, horario: horario || "" }
     }
 
-    // Formata data: DD/MM/YYYY
     const dia = String(date.getDate()).padStart(2, "0")
     const mes = String(date.getMonth() + 1).padStart(2, "0")
     const ano = date.getFullYear()
     const dataFormatada = `${dia}/${mes}/${ano}`
 
-    // Formata horário: HH:MM
     const horas = String(date.getHours()).padStart(2, "0")
     const minutos = String(date.getMinutes()).padStart(2, "0")
     const horarioFormatado = `${horas}:${minutos}`
 
     return { data: dataFormatada, horario: horarioFormatado }
   } catch (error) {
-    console.error("[v0] Erro ao formatar data:", error)
     return { data: dataString, horario: horario || "" }
   }
 }
 
 export async function sendWhatsAppMessage(phone: string, message: string, tipo = "manual"): Promise<WhatsAppResponse> {
   try {
-    console.log("[v0] =================================")
-    console.log("[v0] INICIANDO ENVIO DE WHATSAPP")
-    console.log("[v0] Destinatário:", phone)
-    console.log("[v0] Tipo:", tipo)
-    console.log("[v0] Mensagem:", message)
-
     const url = `${ZAPI_CONFIG.baseUrl}/instances/${ZAPI_CONFIG.instanceId}/token/${ZAPI_CONFIG.token}/send-text`
 
     const payload = {
       phone: phone,
       message: message,
     }
-
-    console.log("[v0] URL da Z-API:", url)
-    console.log("[v0] Payload:", JSON.stringify(payload, null, 2))
 
     const response = await fetch(url, {
       method: "POST",
@@ -85,13 +71,7 @@ export async function sendWhatsAppMessage(phone: string, message: string, tipo =
 
     const data = await response.json()
 
-    console.log("[v0] Resposta da Z-API:")
-    console.log("[v0] Status:", response.status)
-    console.log("[v0] Data:", JSON.stringify(data, null, 2))
-    console.log("[v0] =================================")
-
     if (!response.ok) {
-      console.error("[v0] ERRO na Z-API:", data)
       return {
         success: false,
         error: data.message || "Erro ao enviar mensagem",
@@ -105,7 +85,6 @@ export async function sendWhatsAppMessage(phone: string, message: string, tipo =
       response: data,
     }
   } catch (error: any) {
-    console.error("[v0] EXCEÇÃO ao enviar WhatsApp:", error)
     return {
       success: false,
       error: error.message || "Erro desconhecido",
