@@ -350,6 +350,7 @@ export default function AdminDashboard() {
           callsRealizadas: data.calls_realizadas || 0,
           modulosConcluidos: data.modulos_concluidos || 0,
           diasMentoria: data.dias_mentoria || 0,
+          midias: data.midias || [], // Initialize midias state
         })
       }
     } catch (error) {
@@ -3936,6 +3937,7 @@ export default function AdminDashboard() {
                   { id: "empresa", label: "Empresa" },
                   { id: "resumo", label: "Resumo" },
                   { id: "comentarios", label: "Comentários" },
+                  { id: "midias", label: "Mídias" },
                 ].map((tab) => (
                   <button
                     key={tab.id}
@@ -4594,6 +4596,250 @@ export default function AdminDashboard() {
                         <Plus className="h-4 w-4 mr-2" />
                         Adicionar Anotação
                       </Button>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === "midias" && (
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold">Mídias e Métricas do Mentorado</h3>
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const novasMidias = [
+                            ...(editingData.midias || []),
+                            {
+                              tipo: "imagem",
+                              categoria: "campanha",
+                              titulo: "",
+                              descricao: "",
+                              url: "",
+                              data_midia: "",
+                              horario_midia: "",
+                              reuniao_id: null,
+                              metricas: { alcance: 0, conversao: 0, roi: 0 },
+                            },
+                          ]
+                          setEditingData({ ...editingData, midias: novasMidias })
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Adicionar Mídia
+                      </Button>
+                    </div>
+
+                    <div className="space-y-4">
+                      {(editingData.midias || []).map((midia: any, index: number) => (
+                        <div key={index} className="border rounded-lg p-4 space-y-4 bg-gray-50">
+                          <div className="grid grid-cols-3 gap-4">
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Tipo</label>
+                              <select
+                                value={midia.tipo || "imagem"}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = { ...midia, tipo: e.target.value }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              >
+                                <option value="imagem">Imagem</option>
+                                <option value="video">Vídeo</option>
+                                <option value="documento">Documento</option>
+                                <option value="metrica">Métrica</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Categoria</label>
+                              <select
+                                value={midia.categoria || "campanha"}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = { ...midia, categoria: e.target.value }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              >
+                                <option value="campanha">Campanha</option>
+                                <option value="metrica">Métrica</option>
+                                <option value="resultado">Resultado</option>
+                                <option value="outro">Outro</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Vincular a Reunião</label>
+                              <select
+                                value={midia.reuniao_id || ""}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = {
+                                    ...midia,
+                                    reuniao_id: e.target.value ? Number(e.target.value) : null,
+                                  }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                              >
+                                <option value="">Sem vínculo</option>
+                                {meetings
+                                  .filter((m) => m.mentorado_id === editingMentorado)
+                                  .map((m) => (
+                                    <option key={m.id} value={m.id}>
+                                      {m.titulo} - {m.data}
+                                    </option>
+                                  ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Título</label>
+                              <Input
+                                value={midia.titulo || ""}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = { ...midia, titulo: e.target.value }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                                placeholder="Ex: Campanha Black Friday"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">URL da Mídia</label>
+                              <Input
+                                value={midia.url || ""}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = { ...midia, url: e.target.value }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                                placeholder="https://..."
+                              />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="text-sm font-medium text-gray-700">Descrição</label>
+                            <Textarea
+                              value={midia.descricao || ""}
+                              onChange={(e) => {
+                                const novasMidias = [...(editingData.midias || [])]
+                                novasMidias[index] = { ...midia, descricao: e.target.value }
+                                setEditingData({ ...editingData, midias: novasMidias })
+                              }}
+                              rows={2}
+                              placeholder="Descrição da mídia ou campanha"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Data da Mídia</label>
+                              <Input
+                                type="date"
+                                value={midia.data_midia || ""}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = { ...midia, data_midia: e.target.value }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-gray-700">Horário da Mídia</label>
+                              <Input
+                                type="time"
+                                value={midia.horario_midia || ""}
+                                onChange={(e) => {
+                                  const novasMidias = [...(editingData.midias || [])]
+                                  novasMidias[index] = { ...midia, horario_midia: e.target.value }
+                                  setEditingData({ ...editingData, midias: novasMidias })
+                                }}
+                              />
+                            </div>
+                          </div>
+
+                          <div className="border-t pt-4">
+                            <label className="text-sm font-medium text-gray-700 mb-3 block">Métricas da Campanha</label>
+                            <div className="grid grid-cols-3 gap-4">
+                              <div>
+                                <label className="text-xs text-gray-600">Alcance</label>
+                                <Input
+                                  type="number"
+                                  value={midia.metricas?.alcance || 0}
+                                  onChange={(e) => {
+                                    const novasMidias = [...(editingData.midias || [])]
+                                    novasMidias[index] = {
+                                      ...midia,
+                                      metricas: { ...midia.metricas, alcance: Number(e.target.value) },
+                                    }
+                                    setEditingData({ ...editingData, midias: novasMidias })
+                                  }}
+                                  placeholder="0"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-600">Conversão (%)</label>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={midia.metricas?.conversao || 0}
+                                  onChange={(e) => {
+                                    const novasMidias = [...(editingData.midias || [])]
+                                    novasMidias[index] = {
+                                      ...midia,
+                                      metricas: { ...midia.metricas, conversao: Number(e.target.value) },
+                                    }
+                                    setEditingData({ ...editingData, midias: novasMidias })
+                                  }}
+                                  placeholder="0.0"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-600">ROI (R$)</label>
+                                <Input
+                                  type="number"
+                                  value={midia.metricas?.roi || 0}
+                                  onChange={(e) => {
+                                    const novasMidias = [...(editingData.midias || [])]
+                                    novasMidias[index] = {
+                                      ...midia,
+                                      metricas: { ...midia.metricas, roi: Number(e.target.value) },
+                                    }
+                                    setEditingData({ ...editingData, midias: novasMidias })
+                                  }}
+                                  placeholder="0"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                const novasMidias = editingData.midias.filter((_: any, i: number) => i !== index)
+                                setEditingData({ ...editingData, midias: novasMidias })
+                              }}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Remover Mídia
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {(!editingData.midias || editingData.midias.length === 0) && (
+                        <div className="text-center py-8 text-gray-500">
+                          <Upload className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                          <p>Nenhuma mídia adicionada ainda</p>
+                          <p className="text-sm">Clique em "Adicionar Mídia" para começar</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
