@@ -9,6 +9,9 @@ import {
   NOTIFICATION_GROUP_ID,
 } from "@/lib/whatsapp"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 const sql = neon(
   "postgresql://neondb_owner:npg_TNMj2X4HrqEw@ep-misty-mode-acoot3dc-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require",
 )
