@@ -90,9 +90,7 @@ export async function POST(request: NextRequest) {
       planejamento,
     } = data
 
-    if (!mentorado_id || !meetingDate || !horario || !titulo || !admin_id) {
-      return NextResponse.json({ error: "Parâmetros obrigatórios faltando (incluindo admin_id)" }, { status: 400 })
-    }
+    const adminEmail = request.headers.get("x-admin-email") || "sistema"
 
     console.log("[v0] Dados recebidos:", {
       mentorado_id,
@@ -105,18 +103,13 @@ export async function POST(request: NextRequest) {
       createCallPendente,
       callPendenteTitulo,
       callPendenteStatus,
+      adminEmail,
       planejamento,
     })
 
-    const [admin] = await sql`
-      SELECT email FROM admins WHERE id = ${Number.parseInt(admin_id)}
-    `
-
-    if (!admin) {
-      return NextResponse.json({ error: "Admin não encontrado" }, { status: 404 })
+    if (!mentorado_id || !meetingDate || !horario || !titulo || !admin_id) {
+      return NextResponse.json({ error: "Parâmetros obrigatórios faltando" }, { status: 400 })
     }
-
-    const adminEmail = admin.email
 
     const newMeeting = await sql`
       INSERT INTO reunioes (mentorado_id, data, horario, duracao, titulo, meet_link, admin_id, status, planejamento, created_by, created_at)
