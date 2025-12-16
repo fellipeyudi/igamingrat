@@ -102,7 +102,21 @@ export async function POST(request: NextRequest) {
   try {
     const data = await request.json()
 
-    const adminEmail = request.headers.get("x-admin-email") || "sistema"
+    const { admin_id } = data
+
+    if (!admin_id) {
+      return NextResponse.json({ error: "admin_id é obrigatório" }, { status: 400 })
+    }
+
+    const [admin] = await sql`
+      SELECT email FROM admins WHERE id = ${Number.parseInt(admin_id)}
+    `
+
+    if (!admin) {
+      return NextResponse.json({ error: "Admin não encontrado" }, { status: 404 })
+    }
+
+    const adminEmail = admin.email
 
     console.log("[v0] Creating mentorado with data:", data, "by admin:", adminEmail)
 
@@ -149,14 +163,14 @@ export async function POST(request: NextRequest) {
       INSERT INTO mentorados (
         nome, email, slug, empresa, telefone, fase_atual, progresso, calls_realizadas,
         cards_status, status_empresa, agenda_mentoria, call_pendente, comentarios,
-        created_by, updated_by
+        created_by, updated_by, admin_id
       ) VALUES (
         ${nome}, ${normalizedEmail}, ${slug}, ${empresa}, ${telefone || null}, ${fase_atual}, ${progresso}, ${calls_realizadas},
         ${JSON.stringify(textosDefault.cards_status)},
         ${JSON.stringify(textosDefault.status_empresa)},
         ${JSON.stringify({ proxima_call: null, calls_realizadas: 0 })},
         NULL, ${comentarios || null},
-        ${adminEmail}, ${adminEmail}
+        ${adminEmail}, ${adminEmail}, ${Number.parseInt(admin_id)}::integer
       ) RETURNING *
     `
 

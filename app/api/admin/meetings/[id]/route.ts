@@ -9,10 +9,21 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   try {
     const meetingId = params.id
     const data = await request.json()
-    const adminEmail = request.headers.get("x-admin-email") || "sistema"
+
+    const adminId = data.admin_id
+    if (!adminId) {
+      return NextResponse.json({ error: "admin_id é obrigatório" }, { status: 400 })
+    }
+
+    // Buscar email do admin
+    const adminResult = await sql`SELECT email FROM admins WHERE id = ${Number.parseInt(adminId)}`
+    if (adminResult.length === 0) {
+      return NextResponse.json({ error: "Admin não encontrado" }, { status: 404 })
+    }
+    const adminEmail = adminResult[0].email
 
     // Se for apenas para marcar como concluída (comportamento antigo)
-    if (data.status === "concluida" && Object.keys(data).length <= 3) {
+    if (data.status === "concluida" && Object.keys(data).length <= 4) {
       const { status, observacoes, data_realizacao } = data
 
       const meeting = await sql`
@@ -39,7 +50,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             observacoes = ${observacoes || null},
             data_realizacao = ${data_realizacao ? new Date(data_realizacao) : new Date()},
             completed_by = ${adminEmail},
+            completed_by_admin_id = ${Number.parseInt(adminId)},
             updated_by = ${adminEmail},
+            updated_by_admin_id = ${Number.parseInt(adminId)},
             updated_at = NOW()
         WHERE id = ${meetingId}
       `
@@ -57,6 +70,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
             meeting_titulo: meeting[0].titulo,
             observacoes,
             data_realizacao,
+            admin_id: adminId,
           })}::jsonb
         )
       `
@@ -65,6 +79,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         UPDATE mentorados 
         SET calls_realizadas = COALESCE(calls_realizadas, 0) + 1,
             updated_by = ${adminEmail},
+            updated_by_admin_id = ${Number.parseInt(adminId)},
             updated_at = NOW()
         WHERE id = ${mentoradoId}
       `
@@ -148,29 +163,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         WHERE id = ${mentoradoId}
       `
 
-      console.log("[v0] Reunião marcada como concluída por:", adminEmail)
+      console.log("[v0] Reunião marcada como concluída por:", adminEmail, "ID:", adminId)
       return NextResponse.json({ success: true })
     }
 
     // Edição completa da reunião (novo comportamento)
-    const {
-      mentorado_id,
-      data: meetingDate,
-      horario,
-      duracao,
-      titulo,
-      meet_link,
-      admin_id,
-      status,
-      planejamento,
-    } = data
+    const { mentorado_id, data: meetingDate, horario, duracao, titulo, meet_link, status, planejamento } = data
 
     // Validar parâmetros obrigatórios
-    if (!mentorado_id || !meetingDate || !horario || !titulo || !admin_id) {
+    if (!mentorado_id || !meetingDate || !horario || !titulo) {
       return NextResponse.json({ error: "Parâmetros obrigatórios faltando" }, { status: 400 })
     }
 
-    // Atualizar a reunião
     const updatedMeeting = await sql`
       UPDATE reunioes 
       SET 
@@ -180,10 +184,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
         duracao = ${Number.parseInt(duracao) || 60}::integer,
         titulo = ${titulo}::text,
         meet_link = ${meet_link || null}::text,
-        admin_id = ${Number.parseInt(admin_id)}::integer,
+        admin_id = ${Number.parseInt(adminId)}::integer,
         status = ${status || "agendada"}::text,
         planejamento = ${planejamento || null}::text,
         updated_by = ${adminEmail},
+        updated_by_admin_id = ${Number.parseInt(adminId)},
         updated_at = NOW()
       WHERE id = ${Number.parseInt(meetingId)}::integer
       RETURNING *
@@ -213,7 +218,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           data: meetingDate,
           horario,
           meet_link,
-          admin_id,
+          admin_id: adminId,
           status,
         })}::jsonb
       )
@@ -277,9 +282,18 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const meetingId = params.id
-    const { status } = await request.json()
+    const { status, admin_id } = await request.json()
 
-    const adminEmail = request.headers.get("x-admin-email") || "sistema"
+    if (!admin_id) {
+      return NextResponse.json({ error: "admin_id é obrigatório" }, { status: 400 })
+    }
+
+    // Buscar email do admin
+    const adminResult = await sql`SELECT email FROM admins WHERE id = ${Number.parseInt(admin_id)}`
+    if (adminResult.length === 0) {
+      return NextResponse.json({ error: "Admin não encontrado" }, { status: 404 })
+    }
+    const adminEmail = adminResult[0].email
 
     if (status !== "concluida") {
       return NextResponse.json({ error: "Status inválido" }, { status: 400 })
@@ -299,7 +313,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       UPDATE reunioes 
       SET status = 'concluida',
           completed_by = ${adminEmail},
+          completed_by_admin_id = ${Number.parseInt(admin_id)},
           updated_by = ${adminEmail},
+          updated_by_admin_id = ${Number.parseInt(admin_id)},
           updated_at = NOW()
       WHERE id = ${meetingId}
     `
@@ -311,7 +327,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         'COMPLETE_MEETING',
         'reunioes',
         ${Number.parseInt(meetingId)},
-        ${JSON.stringify({ mentorado_id: mentoradoId })}::jsonb
+        ${JSON.stringify({ mentorado_id: mentoradoId, admin_id: admin_id })}::jsonb
       )
     `
 
@@ -319,6 +335,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       UPDATE mentorados 
       SET calls_realizadas = COALESCE(calls_realizadas, 0) + 1,
           updated_by = ${adminEmail},
+          updated_by_admin_id = ${Number.parseInt(admin_id)},
           updated_at = NOW()
       WHERE id = ${mentoradoId}
     `
@@ -378,7 +395,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
       `
     }
 
-    console.log("[v0] Reunião marcada como concluída por:", adminEmail)
+    console.log("[v0] Reunião marcada como concluída por:", adminEmail, "ID:", admin_id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Erro ao marcar reunião como concluída:", error)
@@ -389,8 +406,18 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
 export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const meetingId = params.id
+    const { admin_id } = await request.json()
 
-    const adminEmail = request.headers.get("x-admin-email") || "sistema"
+    if (!admin_id) {
+      return NextResponse.json({ error: "admin_id é obrigatório" }, { status: 400 })
+    }
+
+    // Buscar email do admin
+    const adminResult = await sql`SELECT email FROM admins WHERE id = ${Number.parseInt(admin_id)}`
+    if (adminResult.length === 0) {
+      return NextResponse.json({ error: "Admin não encontrado" }, { status: 404 })
+    }
+    const adminEmail = adminResult[0].email
 
     const meeting = await sql`
       SELECT r.*, m.nome as mentorado_nome
@@ -418,6 +445,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
           mentorado_nome: meeting[0].mentorado_nome,
           meeting_titulo: meeting[0].titulo,
           data: meeting[0].data,
+          admin_id: admin_id,
         })}::jsonb
       )
     `
@@ -432,6 +460,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
         UPDATE mentorados 
         SET calls_realizadas = GREATEST(COALESCE(calls_realizadas, 1) - 1, 0),
             updated_by = ${adminEmail},
+            updated_by_admin_id = ${Number.parseInt(admin_id)},
             updated_at = NOW()
         WHERE id = ${mentoradoId}
       `
@@ -514,11 +543,12 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
       UPDATE mentorados 
       SET agenda_mentoria = ${JSON.stringify(agendaAtualizada)}::jsonb,
           updated_by = ${adminEmail},
+          updated_by_admin_id = ${Number.parseInt(admin_id)},
           updated_at = NOW()
       WHERE id = ${mentoradoId}
     `
 
-    console.log("[v0] Reunião excluída por:", adminEmail)
+    console.log("[v0] Reunião excluída por:", adminEmail, "ID:", admin_id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Erro ao excluir reunião:", error)

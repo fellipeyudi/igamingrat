@@ -103,21 +103,26 @@ export async function POST(request: Request) {
       mentorado_id,
       data_limite,
       criado_por,
+      admin_id,
       tags,
       checklist,
       anexos,
       horario,
     } = body
 
+    if (!admin_id) {
+      return Response.json({ error: "admin_id é obrigatório" }, { status: 400 })
+    }
+
     const [task] = await sql`
       INSERT INTO tasks (
         titulo, descricao, status, prioridade, atribuido_para,
-        mentorado_id, data_limite, criado_por, anexos, horario_limite
+        mentorado_id, data_limite, criado_por, anexos, horario_limite, admin_id
       )
       VALUES (
         ${titulo}, ${descricao}, ${status || "todo"}, ${prioridade || "media"},
         ${atribuido_para}, ${mentorado_id || null}, ${data_limite || null}, ${criado_por},
-        ${anexos ? JSON.stringify(anexos) : "[]"}::jsonb, ${horario || null}
+        ${anexos ? JSON.stringify(anexos) : "[]"}::jsonb, ${horario || null}, ${Number.parseInt(admin_id)}::integer
       )
       RETURNING *
     `
@@ -181,7 +186,7 @@ export async function POST(request: Request) {
           'task_criada',
           'enviando',
           ${mentorado_id || null},
-          ${criado_por || "sistema"}
+          ${criado_por}
         )
         RETURNING id
       `
