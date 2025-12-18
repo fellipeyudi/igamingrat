@@ -3628,7 +3628,7 @@ export default function AdminDashboard() {
       const response = await fetch("/api/admin/aulas")
       if (response.ok) {
         const data = await response.json()
-        setAulas(data.aulas || [])
+        setAulas(Array.isArray(data) ? data : [])
       }
     } catch (error) {
       console.error("Erro ao carregar aulas:", error)
