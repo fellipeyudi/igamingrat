@@ -2,7 +2,7 @@
 const ZAPI_CONFIG = {
   instanceId: "3EB605034006810864C082D554977C76",
   token: "949E614B58871AA0858B975F",
-  clientToken: "F4e475885d6ba4f8c9f0f9bd4263bc640S",
+  clientToken: "F2e233b0602194e65933f12acefc9afd1S",
   baseUrl: "https://api.z-api.io",
 }
 

@@ -42,9 +42,8 @@ import {
   Send,
   Archive,
   Edit2,
-  Play,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card" // Added CardTitle
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Added CardTitle
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -190,17 +189,6 @@ export default function AdminDashboard() {
     horario: "",
     arquivado: false, // Add archived status
   })
-
-  const [aulas, setAulas] = useState<any[]>([])
-  const [aulaForm, setAulaForm] = useState({
-    titulo: "",
-    descricao: "",
-    video_url: "",
-    duracao: "",
-    thumbnail_url: "",
-  })
-  const [editingAulaId, setEditingAulaId] = useState<number | null>(null)
-  const [showAulaModal, setShowAulaModal] = useState(false)
 
   const getDefaultTextsByPhase = (phase: string, nome = "mentorado") => {
     const phaseTexts = {
@@ -482,11 +470,10 @@ export default function AdminDashboard() {
     loadMentorados()
     loadMeetings()
     loadMeetingsMetrics()
-    loadAdmins()
+    loadAdmins() // Adicionar carregamento de admins
     if (activeSection === "tasks") {
       loadTasks()
     }
-    loadAulas()
   }, [activeSection]) // Dependência adicionada para garantir que loadTasks seja chamado quando activeSection mudar
 
   useEffect(() => {
@@ -1072,10 +1059,10 @@ export default function AdminDashboard() {
   // Função para carregar admins
   const loadAdmins = async () => {
     try {
-      const response = await fetch("/api/admin/admins") // Changed API endpoint
+      const response = await fetch("/api/admin/list")
       if (response.ok) {
         const data = await response.json()
-        setAdmins(data.admins || []) // Expecting 'admins' array in response
+        setAdmins(data)
       }
     } catch (error) {
       console.error("Erro ao carregar admins:", error)
@@ -1569,20 +1556,6 @@ export default function AdminDashboard() {
         </button>
 
         {/* /** rest of code here **/}
-        <button
-          onClick={() => {
-            setActiveSection("aulas")
-            setIsMobileMenuOpen(false)
-          }}
-          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-            activeSection === "aulas"
-              ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
-              : "text-gray-700 hover:bg-gray-50"
-          }`}
-        >
-          <Play className="h-5 w-5" />
-          Aulas
-        </button>
 
         <button
           onClick={() => {
@@ -3505,12 +3478,17 @@ export default function AdminDashboard() {
         return renderDashboard()
       case "agenda":
         return renderAgendaSection()
+      case "logs":
+        return renderLogsSection()
+      case "disponibilidade":
+        return renderDisponibilidadeSection()
+      case "historico":
+        return renderHistoricoSection()
       case "avaliacoes":
         return renderAvaliacoes()
       case "tasks":
         return renderTasksSection()
-      case "aulas":
-        return renderAulasSection()
+      // Renderizando componente Minhas Demandas
       case "minhas-demandas":
         return (
           <div>
@@ -3620,230 +3598,6 @@ export default function AdminDashboard() {
         </div>
       )
     )
-  }
-
-  // Function to load and render Aulas
-  const loadAulas = async () => {
-    try {
-      const response = await fetch("/api/admin/aulas")
-      if (response.ok) {
-        const data = await response.json()
-        setAulas(Array.isArray(data) ? data : [])
-      }
-    } catch (error) {
-      console.error("Erro ao carregar aulas:", error)
-    }
-  }
-
-  const renderAulasSection = () => {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Biblioteca de Aulas</h1>
-          <Button onClick={() => setShowAulaModal(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Aula
-          </Button>
-        </div>
-
-        {aulas.length === 0 ? (
-          <Card>
-            <CardContent className="text-center py-12">
-              <Play className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-              <p className="text-gray-500">Nenhuma aula adicionada ainda.</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {aulas.map((aula) => (
-              <Card key={aula.id} className="overflow-hidden">
-                <CardHeader>
-                  <img
-                    src={aula.thumbnail_url || "/images/placeholder-aula.png"}
-                    alt={aula.titulo}
-                    className="w-full h-48 object-cover rounded-t-lg"
-                  />
-                </CardHeader>
-                <CardContent className="pt-4 space-y-3">
-                  <CardTitle className="text-lg font-semibold">{aula.titulo}</CardTitle>
-                  <p className="text-sm text-gray-600 line-clamp-2">{aula.descricao}</p>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
-                    <Clock className="h-3 w-3" />
-                    <span>Duração: {aula.duracao}</span>
-                  </div>
-                </CardContent>
-                <CardFooter className="flex justify-end gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setEditingAulaId(aula.id)
-                      setAulaForm({
-                        titulo: aula.titulo,
-                        descricao: aula.descricao,
-                        video_url: aula.video_url,
-                        duracao: aula.duracao,
-                        thumbnail_url: aula.thumbnail_url,
-                      })
-                      setShowAulaModal(true)
-                    }}
-                  >
-                    <Edit className="h-4 w-4 mr-2" />
-                    Editar
-                  </Button>
-                  <Button variant="destructive" onClick={() => handleDeleteAula(aula.id)}>
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Excluir
-                  </Button>
-                  <Button asChild>
-                    <a href={aula.video_url} target="_blank" rel="noopener noreferrer">
-                      <Play className="h-4 w-4 mr-2" />
-                      Assistir
-                    </a>
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        )}
-
-        {/* Modal: Nova/Editar Aula */}
-        {showAulaModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold">{editingAulaId ? "Editar Aula" : "Nova Aula"}</h2>
-                  <button onClick={() => setShowAulaModal(false)} className="text-gray-400 hover:text-gray-600">
-                    <X className="h-6 w-6" />
-                  </button>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
-                    <Input
-                      value={aulaForm.titulo}
-                      onChange={(e) => setAulaForm({ ...aulaForm, titulo: e.target.value })}
-                      placeholder="Título da aula"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descrição</label>
-                    <Textarea
-                      value={aulaForm.descricao}
-                      onChange={(e) => setAulaForm({ ...aulaForm, descricao: e.target.value })}
-                      placeholder="Descrição da aula"
-                      rows={3}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">URL do Vídeo *</label>
-                      <Input
-                        value={aulaForm.video_url}
-                        onChange={(e) => setAulaForm({ ...aulaForm, video_url: e.target.value })}
-                        placeholder="Link do vídeo (YouTube, Vimeo, etc.)"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Duração *</label>
-                      <Input
-                        value={aulaForm.duracao}
-                        onChange={(e) => setAulaForm({ ...aulaForm, duracao: e.target.value })}
-                        placeholder="Ex: 15:30"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">URL da Thumbnail (opcional)</label>
-                    <Input
-                      value={aulaForm.thumbnail_url}
-                      onChange={(e) => setAulaForm({ ...aulaForm, thumbnail_url: e.target.value })}
-                      placeholder="Link da imagem de capa"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <Button variant="outline" onClick={() => setShowAulaModal(false)} className="flex-1">
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleSaveAula} className="flex-1">
-                    {editingAulaId ? "Atualizar Aula" : "Adicionar Aula"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    )
-  }
-
-  const handleDeleteAula = async (aulaId: number) => {
-    if (!confirm("Tem certeza que deseja excluir esta aula?")) return
-
-    try {
-      const response = await fetch(`/api/admin/aulas/${aulaId}`, {
-        method: "DELETE",
-      })
-
-      if (response.ok) {
-        setAulas(aulas.filter((aula) => aula.id !== aulaId))
-        alert("Aula excluída com sucesso!")
-      } else {
-        alert("Erro ao excluir aula")
-      }
-    } catch (error) {
-      console.error("Erro ao excluir aula:", error)
-      alert("Erro ao excluir aula")
-    }
-  }
-
-  const handleSaveAula = async () => {
-    if (!aulaForm.titulo || !aulaForm.video_url || !aulaForm.duracao) {
-      alert("Título, URL do vídeo e Duração são obrigatórios.")
-      return
-    }
-
-    const method = editingAulaId ? "PATCH" : "POST"
-    const url = editingAulaId ? `/api/admin/aulas/${editingAulaId}` : "/api/admin/aulas"
-
-    try {
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(aulaForm),
-      })
-
-      if (response.ok) {
-        const result = await response.json()
-        if (editingAulaId) {
-          setAulas(aulas.map((aula) => (aula.id === editingAulaId ? result.aula : aula)))
-        } else {
-          setAulas([...aulas, result.aula])
-        }
-        setShowAulaModal(false)
-        setEditingAulaId(null)
-        setAulaForm({
-          titulo: "",
-          descricao: "",
-          video_url: "",
-          duracao: "",
-          thumbnail_url: "",
-        })
-        alert(editingAulaId ? "Aula atualizada com sucesso!" : "Aula adicionada com sucesso!")
-      } else {
-        const errorData = await response.json()
-        alert(errorData.error || `Erro ao ${editingAulaId ? "atualizar" : "adicionar"} aula.`)
-      }
-    } catch (error) {
-      console.error("Erro ao salvar aula:", error)
-      alert(`Erro ao salvar aula. Tente novamente.`)
-    }
   }
 
   return (
