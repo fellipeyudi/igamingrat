@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogFooter } from "@/components/ui/dialog"
+
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -47,6 +49,7 @@ import {
   ArrowDown,
   Play,
   ArrowLeft,
+  Bell,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Added CardTitle
 import { Button } from "@/components/ui/button"
@@ -58,6 +61,13 @@ import { Badge } from "@/components/ui/badge" // Added Badge for Avaliações
 import { Label } from "@/components/ui/label" // Added Label for Task form
 import WhatsAppTest from "@/components/whatsapp-test"
 import MinhasDemandas from "@/components/minhas-demandas"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription, // Added DialogDescription
+} from "@/components/ui/dialog" // Import Dialog components
 
 export default function AdminDashboard() {
   const [activeSection, setActiveSection] = useState("dashboard")
@@ -122,14 +132,7 @@ export default function AdminDashboard() {
     empresa: "",
     email: "",
     telefone: "",
-    fase: "Planejamento",
-    progresso: 0,
-    diasMentoria: 0,
-    callsRealizadas: 0,
-    modulosConcluidos: 0,
     anotacoes: "",
-    proximosMarcos: [],
-    conquistasRecentes: [],
   })
 
   const [editingData, setEditingData] = useState<any>({})
@@ -338,7 +341,7 @@ export default function AdminDashboard() {
           fase_atual: m.fase_atual || "Estruturação", // Changed from fase to fase_atual
           progresso: m.progresso || 65,
           proximaCall: "A definir",
-          status: "ativo",
+          status: m.status || "ativo", // Usando o status do backend
           diasMentoria: m.dias_mentoria || 0,
           callsRealizadas: m.calls_realizadas || 0,
           modulosConcluidos: m.modulos_concluidos || 0,
@@ -976,15 +979,11 @@ export default function AdminDashboard() {
         body: JSON.stringify({
           nome: newMentorado.nome,
           email: newMentorado.email,
+          senha: Math.random().toString(36).slice(-8), // Gera senha automática
           slug: slug,
           empresa: newMentorado.empresa,
           telefone: newMentorado.telefone,
           comentarios: newMentorado.anotacoes,
-          fase_atual: newMentorado.fase,
-          progresso: newMentorado.progresso,
-          calls_realizadas: newMentorado.callsRealizadas,
-          modulos_concluidos: newMentorado.modulosConcluidos,
-          dias_mentoria: newMentorado.diasMentoria,
         }),
       })
 
@@ -999,24 +998,17 @@ export default function AdminDashboard() {
           empresa: "",
           email: "",
           telefone: "",
-          fase: "Planejamento",
-          progresso: 0,
-          diasMentoria: 0,
-          callsRealizadas: 0,
-          modulosConcluidos: 0,
           anotacoes: "",
-          proximosMarcos: [],
-          conquistasRecentes: [],
         })
+
         setShowCreateModal(false)
         alert("Mentorado criado com sucesso!")
       } else {
-        console.error("[v0] Erro ao criar mentorado:", result)
-        alert(result.error || "Erro ao criar mentorado")
+        alert(`Erro ao criar mentorado: ${result.error}`)
       }
     } catch (error) {
-      console.error("[v0] Erro na requisição:", error)
-      alert("Erro ao criar mentorado. Tente novamente.")
+      console.error("[v0] Erro ao criar mentorado:", error)
+      alert("Erro ao criar mentorado")
     } finally {
       setCreating(false)
     }
@@ -3417,7 +3409,7 @@ export default function AdminDashboard() {
                         <div key={comment.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-sm font-semibold text-gray-900">{comment.autor}</span>
-                            <span className="text-xs text-gray-500">
+                            <span className="text-sm text-gray-500">
                               {new Date(comment.created_at).toLocaleString()}
                             </span>
                           </div>
@@ -3464,7 +3456,7 @@ export default function AdminDashboard() {
         )}
         {contextMenu && (
           <div
-            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1 z-[100]"
+            className="fixed bg-white rounded-lg shadow-xl border border-gray-200 py-1"
             style={{ top: contextMenu.y, left: contextMenu.x }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -3510,88 +3502,6 @@ export default function AdminDashboard() {
         )}
       </div>
     )
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticação...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated) {
-    return null
-  }
-
-  const renderHeader = () => (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-semibold text-gray-900 capitalize">{activeSection}</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* User Profile/Settings */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              MA
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Marcos Andrade</p>
-              <p className="text-xs text-gray-500">Administrador</p>
-            </div>
-          </div>
-          <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 bg-transparent">
-            Sair
-          </Button>
-        </div>
-      </div>
-    </header>
-  )
-
-  const renderContent = () => {
-    if (activeSection === "whatsapp") {
-      return <WhatsAppTest />
-    }
-
-    switch (activeSection) {
-      case "dashboard":
-        return renderDashboard()
-      case "agenda":
-        return renderAgendaSection()
-      case "logs":
-        return renderLogsSection()
-      case "disponibilidade":
-        return renderDisponibilidadeSection()
-      case "historico":
-        return renderHistoricoSection()
-      case "avaliacoes":
-        return renderAvaliacoes()
-      case "tasks":
-        return renderTasksSection()
-      case "aulas":
-        return renderAulasSection()
-      // Renderizando componente Minhas Demandas
-      case "minhas-demandas":
-        return (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Minhas Demandas</h2>
-                <p className="text-gray-600">Tasks e reuniões atribuídas a você</p>
-              </div>
-            </div>
-            <MinhasDemandas adminEmail={adminEmail} />
-          </div>
-        )
-      case "comentarios":
-        return renderComentariosSection()
-      default:
-        return <div className="p-6 text-center text-gray-500">Seção não encontrada.</div>
-    }
   }
 
   const renderCommentModal = () => {
@@ -4468,7 +4378,6 @@ export default function AdminDashboard() {
                         <Textarea
                           value={editingAula.sobreAula || ""}
                           onChange={(e) => setEditingAula({ ...editingAula, sobreAula: e.target.value })}
-                          rows={4}
                         />
                       </div>
 
@@ -4689,6 +4598,66 @@ export default function AdminDashboard() {
     }
   }
 
+  // Renderiza o cabeçalho da página
+  const renderHeader = () => (
+    <header className="bg-white shadow-sm border-b border-gray-200 py-4 px-6 flex items-center justify-between">
+      <div className="flex items-center gap-4">
+        {/* Seção de busca */}
+        <div className="relative hidden sm:block">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input type="text" placeholder="Pesquisar..." className="pl-10 w-64" />
+        </div>
+      </div>
+
+      {/* Informações do usuário e logout */}
+      <div className="flex items-center gap-4">
+        <button className="relative p-2 rounded-full hover:bg-gray-100">
+          <Bell className="h-5 w-5 text-gray-600" />
+          <span className="absolute top-1 right-1 h-2 w-2 bg-red-500 rounded-full"></span>
+        </button>
+        <div className="hidden sm:flex items-center gap-2">
+          <div className="w-9 h-9 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
+            {adminEmail.charAt(0).toUpperCase()}
+          </div>
+          <div>
+            <p className="font-medium text-sm text-gray-900">{adminEmail}</p>
+            <p className="text-xs text-gray-500">Administrador</p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 bg-transparent">
+          Sair
+        </Button>
+      </div>
+    </header>
+  )
+
+  // Renderiza o conteúdo principal com base na seção ativa
+  const renderContent = () => {
+    switch (activeSection) {
+      case "dashboard":
+        return renderDashboard()
+      case "agenda":
+        return renderAgendaSection()
+      case "logs":
+        return renderLogsSection()
+      case "avaliacoes":
+        return renderAvaliacoes()
+      case "tasks":
+        return renderTasksSection()
+      case "whatsapp":
+        return <WhatsAppTest />
+      case "aulas":
+        return renderAulasSection()
+      case "comentarios":
+        return renderComentariosSection()
+      case "minhas-demandas":
+        return <MinhasDemandas />
+      // Adicionar outros casos conforme necessário
+      default:
+        return <div>Seção não encontrada</div>
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile Menu Toggle */}
@@ -4873,8 +4842,431 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Modal de comentários */}
-      {renderCommentModal()}
+      {editingMentorado !== null && (
+        <Dialog open={editingMentorado !== null} onOpenChange={() => setEditingMentorado(null)}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle>Personalizar - {mentorados.find((m) => m.id === editingMentorado)?.nome}</DialogTitle>
+            </DialogHeader>
+            <div className="flex-1 overflow-y-auto space-y-6 pt-4 pr-2">
+              {/* Tabs */}
+              <div className="flex border-b gap-1 overflow-x-auto pb-px">
+                <button
+                  onClick={() => setActiveTab("geral")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "geral"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Geral
+                </button>
+                <button
+                  onClick={() => setActiveTab("dashboard")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "dashboard"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Dashboard
+                </button>
+                <button
+                  onClick={() => setActiveTab("cards")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "cards"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Cards
+                </button>
+                <button
+                  onClick={() => setActiveTab("agenda")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "agenda"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Agenda
+                </button>
+                <button
+                  onClick={() => setActiveTab("empresa")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "empresa"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Empresa
+                </button>
+                <button
+                  onClick={() => setActiveTab("resumo")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "resumo"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Resumo
+                </button>
+                <button
+                  onClick={() => setActiveTab("comentarios")}
+                  className={`px-4 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+                    activeTab === "comentarios"
+                      ? "border-b-2 border-blue-600 text-blue-600"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  Comentários
+                </button>
+              </div>
+
+              {/* Tab Content - Geral */}
+              {activeTab === "geral" && (
+                <div className="space-y-6">
+                  <h3 className="font-semibold text-lg">Informações Gerais</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-fase">Fase Atual</Label>
+                      <select
+                        id="edit-fase"
+                        value={editingData.faseAtual}
+                        onChange={(e) => setEditingData({ ...editingData, faseAtual: e.target.value })}
+                        className="w-full p-2 border rounded-md transition-all focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      >
+                        <option value="Alinhamento">Alinhamento</option>
+                        <option value="Planejamento">Planejamento</option>
+                        <option value="Estruturação">Estruturação</option>
+                        <option value="Execução">Execução</option>
+                        <option value="Consolidação">Consolidação</option>
+                      </select>
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-progresso">Progresso (%)</Label>
+                      <Input
+                        id="edit-progresso"
+                        type="number"
+                        value={editingData.progresso || 0}
+                        onChange={(e) => setEditingData({ ...editingData, progresso: Number(e.target.value) })}
+                        min="0"
+                        max="100"
+                        className="transition-all focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-calls">Calls Realizadas</Label>
+                    <Input
+                      id="edit-calls"
+                      type="number"
+                      value={editingData.callsRealizadas || 0}
+                      onChange={(e) => setEditingData({ ...editingData, callsRealizadas: Number(e.target.value) })}
+                      min="0"
+                      className="transition-all focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content - Dashboard */}
+              {activeTab === "dashboard" && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Configurações do Dashboard</h3>
+                  <div>
+                    <Label htmlFor="edit-saudacao">Saudação</Label>
+                    <Input
+                      id="edit-saudacao"
+                      value={editingData.saudacao || ""}
+                      onChange={(e) => setEditingData({ ...editingData, saudacao: e.target.value })}
+                      className="transition-all focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-subtitulo">Subtítulo</Label>
+                    <Input
+                      id="edit-subtitulo"
+                      value={editingData.subtitulo || ""}
+                      onChange={(e) => setEditingData({ ...editingData, subtitulo: e.target.value })}
+                      className="transition-all focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content - Cards */}
+              {activeTab === "cards" && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Configurações dos Cards</h3>
+                  <div>
+                    <Label htmlFor="edit-card-concluido-titulo">Título Card Concluído</Label>
+                    <Input
+                      id="edit-card-concluido-titulo"
+                      value={editingData.cardConcluido?.titulo || ""}
+                      onChange={(e) =>
+                        setEditingData({
+                          ...editingData,
+                          cardConcluido: { ...editingData.cardConcluido, titulo: e.target.value },
+                        })
+                      }
+                      className="transition-all focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-card-concluido-texto">Texto Card Concluído</Label>
+                    <Textarea
+                      id="edit-card-concluido-texto"
+                      value={editingData.cardConcluido?.texto || ""}
+                      onChange={(e) =>
+                        setEditingData({
+                          ...editingData,
+                          cardConcluido: { ...editingData.cardConcluido, texto: e.target.value },
+                        })
+                      }
+                      rows={3}
+                      className="transition-all focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Tab Content - Agenda */}
+              {activeTab === "agenda" && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Configurações de Agenda</h3>
+                  <p className="text-sm text-gray-500">Configurações de agenda em desenvolvimento</p>
+                </div>
+              )}
+
+              {/* Tab Content - Empresa */}
+              {activeTab === "empresa" && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Status da Empresa</h3>
+                  <p className="text-sm text-gray-500">Configurações de empresa em desenvolvimento</p>
+                </div>
+              )}
+
+              {/* Tab Content - Resumo */}
+              {activeTab === "resumo" && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Resumo da Mentoria</h3>
+                  <p className="text-sm text-gray-500">Resumo em desenvolvimento</p>
+                </div>
+              )}
+
+              {/* Tab Content - Comentários */}
+              {activeTab === "comentarios" && (
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">Anotações e Comentários</h3>
+                  <p className="text-sm text-gray-500">Comentários em desenvolvimento</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter className="flex gap-2 pt-4 border-t mt-4">
+              <Button variant="outline" onClick={() => setEditingMentorado(null)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={() => {
+                  const mentorado = mentorados.find((m) => m.id === editingMentorado)
+                  if (mentorado) handleSavePersonalizacao(mentorado)
+                }}
+                disabled={saving}
+              >
+                {saving ? "Salvando..." : "Salvar Alterações"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {showCreateModal && (
+        <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Novo Mentorado</DialogTitle>
+            </DialogHeader>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-nome">Nome *</Label>
+                <Input
+                  id="new-nome"
+                  value={newMentorado.nome}
+                  onChange={(e) => setNewMentorado({ ...newMentorado, nome: e.target.value })}
+                  placeholder="Nome completo"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-empresa">Empresa *</Label>
+                <Input
+                  id="new-empresa"
+                  value={newMentorado.empresa}
+                  onChange={(e) => setNewMentorado({ ...newMentorado, empresa: e.target.value })}
+                  placeholder="Nome da empresa"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-email">Email *</Label>
+                <Input
+                  id="new-email"
+                  type="email"
+                  value={newMentorado.email}
+                  onChange={(e) => setNewMentorado({ ...newMentorado, email: e.target.value })}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-telefone">Telefone</Label>
+                <Input
+                  id="new-telefone"
+                  value={newMentorado.telefone}
+                  onChange={(e) => setNewMentorado({ ...newMentorado, telefone: e.target.value })}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              <div className="col-span-2">
+                <Label htmlFor="new-anotacoes">Anotações Iniciais</Label>
+                <Textarea
+                  id="new-anotacoes"
+                  value={newMentorado.anotacoes}
+                  onChange={(e) => setNewMentorado({ ...newMentorado, anotacoes: e.target.value })}
+                  placeholder="Adicione observações sobre o mentorado..."
+                  rows={4}
+                />
+              </div>
+            </div>
+            <DialogFooter className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowCreateModal(false)
+                  setNewMentorado({
+                    nome: "",
+                    empresa: "",
+                    email: "",
+                    telefone: "",
+                    anotacoes: "",
+                  })
+                }}
+              >
+                Cancelar
+              </Button>
+              <Button onClick={handleCreateMentorado} disabled={creating} className="flex-1">
+                {creating ? "Criando..." : "Criar Mentorado"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {showCreateMeetingModal && (
+        <Dialog open={showCreateMeetingModal} onOpenChange={setShowCreateMeetingModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Nova Reunião</DialogTitle>
+              <DialogDescription>Agende uma nova reunião com um mentorado</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm font-medium">Mentorado</label>
+                <select
+                  value={newMeeting.mentorado_id}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, mentorado_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value="">Selecione um mentorado</option>
+                  {mentorados.map((mentorado) => (
+                    <option key={mentorado.id} value={mentorado.id}>
+                      {mentorado.nome} - {mentorado.empresa}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Mentor Responsável</label>
+                <select
+                  value={newMeeting.admin_id}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, admin_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  {admins.map((admin) => (
+                    <option key={admin.id} value={admin.id}>
+                      {admin.nome}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Título da Call</label>
+                <Input
+                  value={newMeeting.titulo}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, titulo: e.target.value })}
+                  placeholder="Ex: Mentoria - Alinhamento inicial"
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium">Link do Google Meet (opcional)</label>
+                <Input
+                  type="url"
+                  value={newMeeting.meet_link}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, meet_link: e.target.value })}
+                  placeholder="https://meet.google.com/xxx-xxxx-xxx"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Data</label>
+                  <Input
+                    type="date"
+                    value={newMeeting.data}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, data: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Horário</label>
+                  <Input
+                    type="time"
+                    value={newMeeting.horario}
+                    onChange={(e) => setNewMeeting({ ...newMeeting, horario: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Duração (minutos)</label>
+                <select
+                  value={newMeeting.duracao}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, duracao: Number.parseInt(e.target.value) })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md"
+                >
+                  <option value={30}>30 minutos</option>
+                  <option value={60}>60 minutos</option>
+                  <option value={90}>90 minutos</option>
+                  <option value={120}>120 minutos</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium">Planejamento da Call (opcional)</label>
+                <textarea
+                  value={newMeeting.planejamento}
+                  onChange={(e) => setNewMeeting({ ...newMeeting, planejamento: e.target.value })}
+                  placeholder="Descreva os tópicos que devem ser abordados..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md min-h-[80px]"
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2 pt-4">
+                <Button onClick={handleCreateMeeting} disabled={saving} className="flex-1">
+                  {saving ? "Criando..." : "Criar Reunião"}
+                </Button>
+                <Button variant="outline" onClick={() => setShowCreateMeetingModal(false)} className="flex-1">
+                  Cancelar
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   )
 }
