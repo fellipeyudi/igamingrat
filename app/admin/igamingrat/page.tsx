@@ -42,6 +42,11 @@ import {
   Send,
   Archive,
   Edit2,
+  BookOpen,
+  ArrowUp,
+  ArrowDown,
+  Play,
+  ArrowLeft,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card" // Added CardTitle
 import { Button } from "@/components/ui/button"
@@ -133,6 +138,27 @@ export default function AdminDashboard() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
 
+  const [aulas, setAulas] = useState<any[]>([])
+  const [loadingAulas, setLoadingAulas] = useState(false)
+  const [showCreateAulaModal, setShowCreateAulaModal] = useState(false)
+  const [editingAula, setEditingAula] = useState<any>(null)
+  const [showEditAulaModal, setShowEditAulaModal] = useState(false)
+  const [newAula, setNewAula] = useState({
+    titulo: "",
+    descricao: "",
+    duracao: "60",
+    modulo: "",
+    ordem: "1",
+    videoUrl: "",
+    capaUrl: "",
+    objetivosAprendizado: [],
+    sobreAula: "",
+    materiaisComplementares: [],
+    status: "rascunho",
+  })
+  const [materialInput, setMaterialInput] = useState("")
+  const [objetivoInput, setObjetivoInput] = useState("")
+
   const [showInfo, setShowInfo] = useState<number | null>(null)
 
   // Mock data for time slots (replace with actual generation)
@@ -189,6 +215,16 @@ export default function AdminDashboard() {
     horario: "",
     arquivado: false, // Add archived status
   })
+
+  const [comentarios, setComentarios] = useState<any[]>([])
+  const [loadingComentarios, setLoadingComentarios] = useState(false)
+  const [selectedAulaComentarios, setSelectedAulaComentarios] = useState<any>(null)
+
+  useEffect(() => {
+    if (activeSection === "comentarios") {
+      loadComentarios()
+    }
+  }, [activeSection])
 
   const getDefaultTextsByPhase = (phase: string, nome = "mentorado") => {
     const phaseTexts = {
@@ -467,14 +503,14 @@ export default function AdminDashboard() {
   }, [contextMenu])
 
   useEffect(() => {
-    loadMentorados()
-    loadMeetings()
-    loadMeetingsMetrics()
-    loadAdmins() // Adicionar carregamento de admins
+    loadAdmins()
     if (activeSection === "tasks") {
       loadTasks()
     }
-  }, [activeSection]) // Dependência adicionada para garantir que loadTasks seja chamado quando activeSection mudar
+    if (activeSection === "aulas") {
+      loadAulas()
+    }
+  }, [activeSection])
 
   useEffect(() => {
     fetchMentoradosAndMeetings()
@@ -1062,7 +1098,9 @@ export default function AdminDashboard() {
       const response = await fetch("/api/admin/list")
       if (response.ok) {
         const data = await response.json()
-        setAdmins(data)
+        if (Array.isArray(data)) {
+          setAdmins(data)
+        }
       }
     } catch (error) {
       console.error("Erro ao carregar admins:", error)
@@ -1082,6 +1120,21 @@ export default function AdminDashboard() {
       console.error("Erro ao carregar tasks:", error)
     } finally {
       setLoadingTasks(false)
+    }
+  }
+
+  const loadAulas = async () => {
+    try {
+      setLoadingAulas(true)
+      const response = await fetch("/api/admin/aulas")
+      if (response.ok) {
+        const data = await response.json()
+        setAulas(data.aulas || [])
+      }
+    } catch (error) {
+      console.error("Erro ao carregar aulas:", error)
+    } finally {
+      setLoadingAulas(false)
     }
   }
 
@@ -1555,7 +1608,7 @@ export default function AdminDashboard() {
           Agenda
         </button>
 
-        {/* /** rest of code here **/}
+        {/* rest of code here */}
 
         <button
           onClick={() => {
@@ -1601,6 +1654,37 @@ export default function AdminDashboard() {
         >
           <MessageSquare className="h-5 w-5" />
           WhatsApp
+        </button>
+
+        <button
+          onClick={() => {
+            setActiveSection("aulas")
+            setIsMobileMenuOpen(false)
+          }}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+            activeSection === "aulas"
+              ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <BookOpen className="h-5 w-5" />
+          Aulas
+        </button>
+
+        {/* Adicionar botão de Comentários na sidebar */}
+        <button
+          onClick={() => {
+            setActiveSection("comentarios")
+            setIsMobileMenuOpen(false)
+          }}
+          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
+            activeSection === "comentarios"
+              ? "bg-blue-50 text-blue-600 border-l-4 border-blue-600"
+              : "text-gray-700 hover:bg-gray-50"
+          }`}
+        >
+          <MessageSquare className="h-5 w-5" />
+          Comentários
         </button>
 
         <button
@@ -2402,7 +2486,7 @@ export default function AdminDashboard() {
 
             <CardContent className="space-y-3 pt-3">
               <div className="flex justify-between text-xs">
-                <span className="text-gray-600">Calls: {mentorado.calls_realizadas || 0}</span>
+                <span className="text-gray-600">Calls: {mentorado.callsRealizadas || 0}</span>
                 <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(mentorado.fase_atual)}`}>
                   {mentorado.fase_atual}
                 </span>
@@ -2730,7 +2814,7 @@ export default function AdminDashboard() {
         const response = await fetch(`/api/admin/tasks/${taskId}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.JSON.stringify({ arquivado: false }),
+          body: JSON.stringify({ arquivado: false }),
         })
         if (response.ok) {
           loadTasks()
@@ -3284,7 +3368,7 @@ export default function AdminDashboard() {
                           <FileText className="h-4 w-4 text-gray-500" />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-gray-900">{anexo.nome}</p>
-                            <p className="text-xs text-gray-500">{(anexo.tamanho / 1024).toFixed(2)} KB</p>
+                            <p className="text-xs text-gray-500">{anexo.tamanho.toFixed(2)} KB</p>
                           </div>
                           <a
                             href={anexo.data}
@@ -3428,51 +3512,1029 @@ export default function AdminDashboard() {
     )
   }
 
-  if (loading) {
+  const convertToYouTubeEmbed = (url: string): string => {
+    if (!url || url.trim() === "") return url
+
+    try {
+      // Padrão 1: https://www.youtube.com/watch?v=VIDEO_ID
+      // Padrão 2: https://youtube.com/watch?v=VIDEO_ID
+      // Padrão 3: https://youtu.be/VIDEO_ID
+      // Padrão 4: https://www.youtube.com/embed/VIDEO_ID (já está correto)
+
+      let videoId = ""
+
+      // Se já estiver no formato embed, retorna como está
+      if (url.includes("youtube.com/embed/")) {
+        return url
+      }
+
+      // Tenta extrair o ID do formato watch?v=
+      if (url.includes("youtube.com/watch")) {
+        const urlParams = new URLSearchParams(url.split("?")[1])
+        videoId = urlParams.get("v") || ""
+      }
+      // Tenta extrair o ID do formato youtu.be
+      else if (url.includes("youtu.be/")) {
+        videoId = url.split("youtu.be/")[1]?.split("?")[0] || ""
+      }
+
+      // Se encontrou o ID, retorna no formato embed
+      if (videoId) {
+        return `https://www.youtube.com/embed/${videoId}`
+      }
+
+      // Se não encontrou o ID, retorna o original
+      return url
+    } catch (error) {
+      console.error("[v0] Erro ao converter URL do YouTube:", error)
+      return url
+    }
+  }
+
+  const renderAulasSection = () => {
+    const addObjetivo = () => {
+      if (objetivoInput.trim()) {
+        if (showEditAulaModal && editingAula) {
+          // Editando aula existente
+          setEditingAula({
+            ...editingAula,
+            objetivosAprendizado: [...(editingAula.objetivosAprendizado || []), objetivoInput],
+          })
+        } else {
+          // Criando nova aula
+          setNewAula({
+            ...newAula,
+            objetivosAprendizado: [...newAula.objetivosAprendizado, objetivoInput],
+          })
+        }
+        setObjetivoInput("")
+      }
+    }
+
+    const removeObjetivo = (index: number) => {
+      if (showEditAulaModal && editingAula) {
+        // Editando aula existente
+        setEditingAula({
+          ...editingAula,
+          objetivosAprendizado: editingAula.objetivosAprendizado.filter((_: string, i: number) => i !== index),
+        })
+      } else {
+        // Criando nova aula
+        setNewAula({
+          ...newAula,
+          objetivosAprendizado: newAula.objetivosAprendizado.filter((_: string, i: number) => i !== index),
+        })
+      }
+    }
+
+    const addMaterial = () => {
+      if (materialInput.trim()) {
+        if (showEditAulaModal && editingAula) {
+          // Editando aula existente
+          setEditingAula({
+            ...editingAula,
+            materiaisComplementares: [...(editingAula.materiaisComplementares || []), materialInput],
+          })
+        } else {
+          // Criando nova aula
+          setNewAula({
+            ...newAula,
+            materiaisComplementares: [...newAula.materiaisComplementares, materialInput],
+          })
+        }
+        setMaterialInput("")
+      }
+    }
+
+    const removeMaterial = (index: number) => {
+      if (showEditAulaModal && editingAula) {
+        // Editando aula existente
+        setEditingAula({
+          ...editingAula,
+          materiaisComplementares: editingAula.materiaisComplementares.filter((_: string, i: number) => i !== index),
+        })
+      } else {
+        // Criando nova aula
+        setNewAula({
+          ...newAula,
+          materiaisComplementares: newAula.materiaisComplementares.filter((_: string, i: number) => i !== index),
+        })
+      }
+    }
+
+    const handleFileUploadMaterial = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+
+      try {
+        const reader = new FileReader()
+        reader.onloadend = () => {
+          const base64 = reader.result as string
+          const fileSize = (file.size / 1024).toFixed(2)
+          const materialData = `Arquivo - ${file.name} (${fileSize}KB)`
+
+          if (showEditAulaModal && editingAula) {
+            // Editando aula existente
+            setEditingAula({
+              ...editingAula,
+              materiaisComplementares: [...(editingAula.materiaisComplementares || []), materialData],
+            })
+          } else {
+            // Criando nova aula
+            setNewAula({
+              ...newAula,
+              materiaisComplementares: [...newAula.materiaisComplementares, materialData],
+            })
+          }
+        }
+        reader.readAsDataURL(file)
+      } catch (error) {
+        console.error("Erro ao fazer upload do arquivo:", error)
+        alert("Erro ao fazer upload do arquivo")
+      }
+    }
+
+    const moveAulaUp = (index: number) => {
+      if (index === 0) return
+      const newAulas = [...aulas]
+      const temp = newAulas[index]
+      newAulas[index] = newAulas[index - 1]
+      newAulas[index - 1] = temp
+
+      // Atualizar campo ordem
+      newAulas[index].ordem = index + 1
+      newAulas[index - 1].ordem = index
+
+      setAulas(newAulas)
+    }
+
+    const moveAulaDown = (index: number) => {
+      if (index === aulas.length - 1) return
+      const newAulas = [...aulas]
+      const temp = newAulas[index]
+      newAulas[index] = newAulas[index + 1]
+      newAulas[index + 1] = temp
+
+      // Atualizar campo ordem
+      newAulas[index].ordem = index + 1
+      newAulas[index + 1].ordem = index + 2
+
+      setAulas(newAulas)
+    }
+
+    const handleCreateAula = async () => {
+      setCreating(true)
+      try {
+        // Preparar materiais com estrutura correta
+        const materiaisFormatados = newAula.materiaisComplementares.map((m: any) => {
+          if (typeof m === "string") {
+            // Se for string simples, converter para objeto
+            const [tipo, titulo] = m.includes(" - ") ? m.split(" - ") : ["link", m]
+            return {
+              titulo: titulo || m,
+              tipo: tipo.toLowerCase() || "link",
+              url: m, // Por enquanto usa o texto como URL
+              tamanho: null,
+            }
+          }
+          return m
+        })
+
+        const videoUrlEmbed = convertToYouTubeEmbed(newAula.videoUrl)
+
+        const aulaData = {
+          titulo: newAula.titulo,
+          descricao: newAula.descricao,
+          modulo: newAula.modulo,
+          ordem: aulas.length + 1,
+          duracao: Number.parseInt(newAula.duracao) || 60,
+          thumbnail_url: newAula.capaUrl,
+          video_url: videoUrlEmbed,
+          sobre_aula: newAula.sobreAula,
+          status: newAula.status,
+          objetivos: newAula.objetivosAprendizado,
+          materiais: materiaisFormatados,
+        }
+
+        const response = await fetch("/api/admin/aulas", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(aulaData),
+        })
+
+        if (response.ok) {
+          alert("Aula criada com sucesso!")
+          await loadAulas() // Recarregar lista
+          setShowCreateAulaModal(false)
+          setNewAula({
+            titulo: "",
+            descricao: "",
+            duracao: "60",
+            modulo: "",
+            ordem: "1",
+            videoUrl: "",
+            capaUrl: "",
+            objetivosAprendizado: [],
+            sobreAula: "",
+            materiaisComplementares: [],
+            status: "rascunho",
+          })
+          setMaterialInput("")
+          setObjetivoInput("")
+        } else {
+          const error = await response.json()
+          alert(`Erro ao criar aula: ${error.error}`)
+        }
+      } catch (error) {
+        console.error("[v0] Erro ao criar aula:", error)
+        alert("Erro ao criar aula")
+      } finally {
+        setCreating(false)
+      }
+    }
+
+    const handleEditAula = (aula: any) => {
+      setEditingAula({
+        ...aula,
+        capaUrl: aula.thumbnail_url,
+        videoUrl: aula.video_url,
+        sobreAula: aula.sobre_aula,
+        objetivosAprendizado: aula.objetivos?.map((obj: any) => obj.objetivo) || [],
+        materiaisComplementares: aula.materiais?.map((mat: any) => `${mat.tipo} - ${mat.titulo}`) || [],
+      })
+      setShowEditAulaModal(true)
+    }
+
+    const handleUpdateAula = async () => {
+      setSaving(true)
+      try {
+        // Preparar materiais com estrutura correta
+        const materiaisFormatados = editingAula.materiaisComplementares.map((m: any) => {
+          if (typeof m === "string") {
+            const [tipo, titulo] = m.includes(" - ") ? m.split(" - ") : ["link", m]
+            return {
+              titulo: titulo || m,
+              tipo: tipo.toLowerCase() || "link",
+              url: m,
+              tamanho: null,
+            }
+          }
+          return m
+        })
+
+        const videoUrlEmbed = convertToYouTubeEmbed(editingAula.videoUrl)
+
+        const aulaData = {
+          titulo: editingAula.titulo,
+          descricao: editingAula.descricao,
+          modulo: editingAula.modulo,
+          ordem: editingAula.ordem,
+          duracao: Number.parseInt(editingAula.duracao) || 60,
+          thumbnail_url: editingAula.capaUrl,
+          video_url: videoUrlEmbed,
+          sobre_aula: editingAula.sobreAula,
+          status: editingAula.status,
+          objetivos: editingAula.objetivosAprendizado,
+          materiais: materiaisFormatados,
+        }
+
+        const response = await fetch(`/api/admin/aulas/${editingAula.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(aulaData),
+        })
+
+        if (response.ok) {
+          alert("Aula atualizada com sucesso!")
+          await loadAulas()
+          setShowEditAulaModal(false)
+          setEditingAula(null)
+        } else {
+          const error = await response.json()
+          alert(`Erro ao atualizar aula: ${error.error}`)
+        }
+      } catch (error) {
+        console.error("[v0] Erro ao atualizar aula:", error)
+        alert("Erro ao atualizar aula")
+      } finally {
+        setSaving(false)
+      }
+    }
+
+    const handleDeleteAula = async (id: number) => {
+      if (!confirm("Tem certeza que deseja excluir esta aula?")) return
+
+      try {
+        const response = await fetch(`/api/admin/aulas/${id}`, {
+          method: "DELETE",
+        })
+
+        if (response.ok) {
+          alert("Aula excluída com sucesso!")
+          await loadAulas()
+        } else {
+          const error = await response.json()
+          alert(`Erro ao excluir aula: ${error.error}`)
+        }
+      } catch (error) {
+        console.error("[v0] Erro ao excluir aula:", error)
+        alert("Erro ao excluir aula")
+      }
+    }
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Verificando autenticação...</p>
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Gerenciar Aulas</h1>
+            <p className="text-gray-600">Adicione, edite e organize o conteúdo do curso</p>
+          </div>
+          <Button onClick={() => setShowCreateAulaModal(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Nova Aula
+          </Button>
         </div>
+
+        {loadingAulas ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {aulas
+              .sort((a, b) => a.ordem - b.ordem)
+              .map((aula, index) => (
+                <Card key={aula.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Badge variant="outline" className="text-xs">
+                            #{aula.ordem}
+                          </Badge>
+                          <CardTitle className="text-lg">{aula.titulo}</CardTitle>
+                        </div>
+                        <Badge variant={aula.status === "publicado" ? "default" : "secondary"} className="mb-2">
+                          {aula.status === "publicado" ? "Publicada" : "Rascunho"}
+                        </Badge>
+                      </div>
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveAulaUp(index)}
+                          disabled={index === 0}
+                          title="Mover para cima"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => moveAulaDown(index)}
+                          disabled={index === aulas.length - 1}
+                          title="Mover para baixo"
+                        >
+                          <ArrowDown className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => handleEditAula(aula)}>
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteAula(aula.id)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {aula.thumbnail_url ? (
+                      <div className="w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                        <img
+                          src={aula.thumbnail_url || "/placeholder.svg"}
+                          alt={aula.titulo}
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "/video-thumbnail.png"
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full h-32 bg-gradient-to-br from-blue-400 to-blue-600 rounded-lg flex items-center justify-center">
+                        <Play className="h-8 w-8 text-white opacity-80" />
+                      </div>
+                    )}
+                    <p className="text-sm text-gray-600 line-clamp-2">{aula.descricao}</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-700">{aula.modulo}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-700">{aula.duracao} minutos</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-700">{aula.objetivos?.length || 0} objetivos</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Paperclip className="h-4 w-4 text-gray-400" />
+                        <span className="text-gray-700">{aula.materiais?.length || 0} materiais</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+          </div>
+        )}
+
+        {/* Modal: Criar Aula */}
+        {showCreateAulaModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Nova Aula</h2>
+                  <button onClick={() => setShowCreateAulaModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-900 mb-3">Informações Básicas</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Título da Aula *</label>
+                        <Input
+                          value={newAula.titulo}
+                          onChange={(e) => setNewAula({ ...newAula, titulo: e.target.value })}
+                          placeholder="Ex: Introdução ao iGaming"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Descrição Curta (Exibida na Lista)
+                        </label>
+                        <Input
+                          value={newAula.descricao}
+                          onChange={(e) => setNewAula({ ...newAula, descricao: e.target.value })}
+                          placeholder="Resumo breve da aula"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Módulo</label>
+                          <Input
+                            value={newAula.modulo}
+                            onChange={(e) => setNewAula({ ...newAula, modulo: e.target.value })}
+                            placeholder="Ex: Módulo 1 - Fundamentos"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Duração (min)</label>
+                          <Input
+                            type="number"
+                            value={newAula.duracao}
+                            onChange={(e) => setNewAula({ ...newAula, duracao: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select
+                          value={newAula.status}
+                          onChange={(e) => setNewAula({ ...newAula, status: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="rascunho">Rascunho</option>
+                          <option value="publicada">Publicada</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-purple-900 mb-3">Mídia e Conteúdo</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">URL da Capa/Thumbnail</label>
+                        <Input
+                          value={newAula.capaUrl}
+                          onChange={(e) => setNewAula({ ...newAula, capaUrl: e.target.value })}
+                          placeholder="https://... ou /placeholder.svg?query=..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Imagem exibida na lista de aulas (recomendado: 320x180px)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">URL do Vídeo *</label>
+                        <Input
+                          value={newAula.videoUrl}
+                          onChange={(e) => setNewAula({ ...newAula, videoUrl: e.target.value })}
+                          placeholder="https://youtube.com/watch?v=... ou https://youtu.be/..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Cole qualquer link do YouTube - será convertido automaticamente para o formato embed
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-green-900 mb-3">Sobre Esta Aula</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Descrição Detalhada</label>
+                        <Textarea
+                          value={newAula.sobreAula}
+                          onChange={(e) => setNewAula({ ...newAula, sobreAula: e.target.value })}
+                          rows={4}
+                          placeholder="Descrição completa exibida na página da aula..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Texto exibido na seção "Sobre esta aula"</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">O Que Você Vai Aprender</label>
+                        <div className="space-y-2">
+                          {newAula.objetivosAprendizado.map((objetivo, index) => (
+                            <div
+                              key={index}
+                              className="flex items-start gap-2 bg-white p-3 rounded border border-green-200"
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span className="flex-1 text-sm">{objetivo}</span>
+                              <button onClick={() => removeObjetivo(index)} className="text-red-500 hover:text-red-700">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <Input
+                              value={objetivoInput}
+                              onChange={(e) => setObjetivoInput(e.target.value)}
+                              onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addObjetivo())}
+                              placeholder="Ex: Fundamentos essenciais do tema"
+                            />
+                            <Button onClick={addObjetivo} variant="outline" type="button">
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <p className="text-xs text-gray-500">Lista exibida na seção "O que você vai aprender"</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-orange-900 mb-3">Materiais Complementares</h3>
+                    <div className="space-y-2">
+                      {newAula.materiaisComplementares.map((material, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 bg-white p-2 rounded border border-orange-200"
+                        >
+                          <Paperclip className="h-4 w-4 text-orange-600" />
+                          <span className="flex-1 text-sm">
+                            {typeof material === "string" ? material : material.titulo || material.arquivo_nome}
+                          </span>
+                          <button onClick={() => removeMaterial(index)} className="text-red-500 hover:text-red-700">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Input
+                          value={materialInput}
+                          onChange={(e) => setMaterialInput(e.target.value)}
+                          onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addMaterial())}
+                          placeholder="Ex: PDF - Glossário | Link - Artigo"
+                          className="flex-1"
+                        />
+                        <Button onClick={addMaterial} variant="outline" type="button">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => document.getElementById("material-file-input")?.click()}
+                          className="gap-2"
+                        >
+                          <Upload className="h-4 w-4" />
+                          Arquivo
+                        </Button>
+                        <input
+                          id="material-file-input"
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,image/*"
+                          onChange={handleFileUploadMaterial}
+                          className="hidden"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">PDFs, links, templates e outros recursos para download</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <Button onClick={() => setShowCreateAulaModal(false)} variant="outline" className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button
+                    onClick={handleCreateAula}
+                    disabled={!newAula.titulo || !newAula.videoUrl || creating}
+                    className="flex-1"
+                  >
+                    {creating ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Criando...
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Criar Aula
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Editar Aula */}
+        {showEditAulaModal && editingAula && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold">Editar Aula</h2>
+                  <button onClick={() => setShowEditAulaModal(false)} className="text-gray-400 hover:text-gray-600">
+                    <X className="h-6 w-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-blue-900 mb-3">Informações Básicas</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Título da Aula *</label>
+                        <Input
+                          value={editingAula.titulo}
+                          onChange={(e) => setEditingAula({ ...editingAula, titulo: e.target.value })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Descrição Curta (Exibida na Lista)
+                        </label>
+                        <Input
+                          value={editingAula.descricao}
+                          onChange={(e) => setEditingAula({ ...editingAula, descricao: e.target.value })}
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Módulo</label>
+                          <Input
+                            value={editingAula.modulo}
+                            onChange={(e) => setEditingAula({ ...editingAula, modulo: e.target.value })}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">Duração (min)</label>
+                          <Input
+                            type="number"
+                            value={editingAula.duracao}
+                            onChange={(e) => setEditingAula({ ...editingAula, duracao: e.target.value })}
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Ordem de Exibição</label>
+                        <Input
+                          type="number"
+                          min="1"
+                          value={editingAula.ordem}
+                          onChange={(e) => setEditingAula({ ...editingAula, ordem: e.target.value })}
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Você também pode usar os botões de seta no card da aula
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                        <select
+                          value={editingAula.status}
+                          onChange={(e) => setEditingAula({ ...editingAula, status: e.target.value })}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="rascunho">Rascunho</option>
+                          <option value="publicada">Publicada</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-purple-900 mb-3">Mídia e Conteúdo</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">URL da Capa/Thumbnail</label>
+                        <Input
+                          value={editingAula.capaUrl || ""}
+                          onChange={(e) => setEditingAula({ ...editingAula, capaUrl: e.target.value })}
+                          placeholder="https://... ou /placeholder.svg?query=..."
+                        />
+                        {editingAula.capaUrl && (
+                          <div className="mt-2 w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
+                            <img
+                              src={editingAula.capaUrl || "/placeholder.svg"}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">URL do Vídeo *</label>
+                        <Input
+                          value={editingAula.videoUrl}
+                          onChange={(e) => setEditingAula({ ...editingAula, videoUrl: e.target.value })}
+                          placeholder="https://youtube.com/watch?v=... ou https://youtu.be/..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Cole qualquer link do YouTube - será convertido automaticamente para o formato embed
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-green-900 mb-3">Sobre Esta Aula</h3>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Descrição Detalhada</label>
+                        <Textarea
+                          value={editingAula.sobreAula || ""}
+                          onChange={(e) => setEditingAula({ ...editingAula, sobreAula: e.target.value })}
+                          rows={4}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">O Que Você Vai Aprender</label>
+                        <div className="space-y-2">
+                          {(editingAula.objetivosAprendizado || []).map((objetivo: string, index: number) => (
+                            <div
+                              key={index}
+                              className="flex items-start gap-2 bg-white p-3 rounded border border-green-200"
+                            >
+                              <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                              <span className="flex-1 text-sm">{objetivo}</span>
+                              <button onClick={() => removeObjetivo(index)} className="text-red-500 hover:text-red-700">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                          <div className="flex gap-2">
+                            <Input
+                              value={objetivoInput}
+                              onChange={(e) => setObjetivoInput(e.target.value)}
+                              onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addObjetivo())}
+                              placeholder="Ex: Fundamentos essenciais do tema"
+                            />
+                            <Button onClick={addObjetivo} variant="outline" type="button">
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                    <h3 className="font-semibold text-orange-900 mb-3">Materiais Complementares</h3>
+                    <div className="space-y-2">
+                      {(editingAula.materiaisComplementares || []).map((material: string, index: number) => (
+                        <div
+                          key={index}
+                          className="flex items-center gap-2 bg-white p-2 rounded border border-orange-200"
+                        >
+                          <Paperclip className="h-4 w-4 text-orange-600" />
+                          <span className="flex-1 text-sm">{material}</span>
+                          <button onClick={() => removeMaterial(index)} className="text-red-500 hover:text-red-700">
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                      ))}
+                      <div className="flex gap-2">
+                        <Input
+                          value={materialInput}
+                          onChange={(e) => setMaterialInput(e.target.value)}
+                          onKeyPress={(e) => e.key === "Enter" && (e.preventDefault(), addMaterial())}
+                          placeholder="Ex: PDF - Glossário"
+                        />
+                        <Button onClick={addMaterial} variant="outline" type="button">
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => document.getElementById("material-file-input")?.click()}
+                          className="gap-2"
+                        >
+                          <Upload className="h-4 w-4" />
+                          Arquivo
+                        </Button>
+                        <input
+                          id="material-file-input"
+                          type="file"
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,image/*"
+                          onChange={handleFileUploadMaterial}
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                  <Button onClick={() => setShowEditAulaModal(false)} variant="outline" className="flex-1">
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleUpdateAula} disabled={!editingAula.titulo || saving} className="flex-1">
+                    {saving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4 mr-2" />
+                        Salvar Alterações
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
 
-  if (!isAuthenticated) {
-    return null
-  }
-
-  const renderHeader = () => (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-semibold text-gray-900 capitalize">{activeSection}</h1>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* User Profile/Settings */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
-              MA
-            </div>
+  const renderComentariosSection = () => {
+    if (selectedAulaComentarios) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4">
+            <Button variant="outline" onClick={() => setSelectedAulaComentarios(null)}>
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Voltar
+            </Button>
             <div>
-              <p className="text-sm font-medium text-gray-900">Marcos Andrade</p>
-              <p className="text-xs text-gray-500">Administrador</p>
+              <h1 className="text-2xl font-bold text-gray-900">{selectedAulaComentarios.aula_titulo}</h1>
+              <p className="text-gray-600">{selectedAulaComentarios.total_comentarios} comentário(s) nesta aula</p>
             </div>
           </div>
-          <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 bg-transparent">
-            Sair
-          </Button>
+
+          <div className="space-y-4">
+            {selectedAulaComentarios.comentarios.map((comentario: any) => (
+              <Card key={comentario.id}>
+                <CardHeader>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <User className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-base">{comentario.mentorado_nome}</CardTitle>
+                        <p className="text-sm text-gray-500">{comentario.mentorado_email}</p>
+                      </div>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      {new Date(comentario.created_at).toLocaleString("pt-BR", {
+                        day: "2-digit",
+                        month: "2-digit",
+                        year: "numeric",
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        timeZone: "America/Sao_Paulo",
+                      })}
+                    </p>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-gray-700">{comentario.comentario}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Comentários das Aulas</h1>
+          <p className="text-gray-600">Visualize todos os comentários dos mentorados por aula</p>
+        </div>
+
+        {loadingComentarios ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          </div>
+        ) : comentarios.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <MessageSquare className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-500">Nenhum comentário registrado ainda</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {comentarios.map((aulaComentario: any) => (
+              <Card
+                key={aulaComentario.aula_id}
+                className="hover:shadow-lg transition-shadow cursor-pointer"
+                onClick={() => setSelectedAulaComentarios(aulaComentario)}
+              >
+                <CardHeader>
+                  <CardTitle className="text-lg">{aulaComentario.aula_titulo}</CardTitle>
+                  {aulaComentario.modulo && (
+                    <Badge variant="outline" className="w-fit">
+                      {aulaComentario.modulo}
+                    </Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2 text-gray-600">
+                    <MessageSquare className="h-5 w-5" />
+                    <span className="font-medium">{aulaComentario.total_comentarios}</span>
+                    <span>comentário(s)</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">Clique para visualizar detalhes</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const loadComentarios = async () => {
+    setLoadingComentarios(true)
+    try {
+      const response = await fetch("/api/admin/comentarios")
+      const data = await response.json()
+      setComentarios(data.comentariosPorAula || [])
+    } catch (error: any) {
+      console.error("[v0] Erro ao buscar comentários:", error.message)
+    } finally {
+      setLoadingComentarios(false)
+    }
+  }
+
+  // Placeholder function for renderHeader - actual implementation would be here
+  const renderHeader = () => (
+    <header className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-semibold text-gray-900">
+            {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
+          </h1>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* Add any header specific elements here, e.g., user profile dropdown */}
         </div>
       </div>
     </header>
   )
 
+  // Placeholder function for renderContent - actual implementation would be here
   const renderContent = () => {
-    if (activeSection === "whatsapp") {
-      return <WhatsAppTest />
-    }
-
     switch (activeSection) {
       case "dashboard":
         return renderDashboard()
@@ -3480,77 +4542,74 @@ export default function AdminDashboard() {
         return renderAgendaSection()
       case "logs":
         return renderLogsSection()
-      case "disponibilidade":
-        return renderDisponibilidadeSection()
-      case "historico":
-        return renderHistoricoSection()
-      case "avaliacoes":
-        return renderAvaliacoes()
       case "tasks":
         return renderTasksSection()
-      // Renderizando componente Minhas Demandas
+      case "aulas":
+        return renderAulasSection()
+      case "avaliacoes":
+        return renderAvaliacoes()
+      case "comentarios":
+        return renderComentariosSection()
+      // Add cases for other sections like 'whatsapp', 'minhas-demandas'
+      case "whatsapp":
+        return <WhatsAppTest /> // Assuming WhatsAppTest is a component for this section
       case "minhas-demandas":
-        return (
-          <div>
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Minhas Demandas</h2>
-                <p className="text-gray-600">Tasks e reuniões atribuídas a você</p>
-              </div>
-            </div>
-            <MinhasDemandas adminEmail={adminEmail} />
-          </div>
-        )
+        return <MinhasDemandas /> // Assuming MinhasDemandas is a component for this section
       default:
-        return <div className="p-6 text-center text-gray-500">Seção não encontrada.</div>
+        return <div>Seção não encontrada</div>
     }
   }
 
-  const renderCommentModal = () => {
-    return (
-      commentModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold">Comentar em Task</h2>
-                <button onClick={() => setCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                  <X className="h-6 w-6" />
-                </button>
+  // Placeholder function for renderCommentModal - actual implementation would be here
+  const renderCommentModal = () =>
+    // This is a placeholder. The actual modal logic for comments needs to be implemented.
+    commentModalOpen && selectedTaskForComment ? (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Comentar em Task: {selectedTaskForComment.titulo}</h2>
+              <button onClick={() => setCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="new-comment" className="block text-sm font-medium text-gray-700 mb-1">
+                  Seu Comentário
+                </label>
+                <Textarea
+                  id="new-comment"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  rows={5}
+                  placeholder="Escreva seu comentário aqui..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                />
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Seu Comentário</label>
-                  <Textarea
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Adicione seu comentário aqui..."
-                    rows={5}
-                    className="border border-gray-300 rounded-lg"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Anexos (opcional)</label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={(e) => {
-                      const files = Array.from(e.target.files || [])
-                      setCommentFiles((prevFiles) => [...prevFiles, ...files])
-                    }}
-                    className="hidden"
-                    id="comment-files"
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={() => document.getElementById("comment-files")?.click()}
-                    className="w-full"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Selecionar Arquivos
-                  </Button>
+              {/* File Upload for Comments */}
+              <div>
+                <label htmlFor="comment-files" className="block text-sm font-medium text-gray-700 mb-2">
+                  Anexos (Opcional)
+                </label>
+                <input
+                  type="file"
+                  multiple
+                  onChange={(e) => setCommentFiles(Array.from(e.target.files || []))}
+                  className="hidden"
+                  id="comment-files"
+                />
+                <Button
+                  variant="outline"
+                  onClick={() => document.getElementById("comment-files")?.click()}
+                  className="w-full"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Selecionar Arquivos ({commentFiles.length})
+                </Button>
+                {commentFiles.length > 0 && (
                   <div className="mt-2 space-y-1">
                     {commentFiles.map((file, index) => (
                       <div key={index} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
@@ -3562,43 +4621,44 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
-                </div>
-
-                {/* Mentions */}
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-gray-700">Mencionar Admins (opcional)</label>
-                  <div className="flex flex-wrap gap-2">
-                    {admins.map((admin) => (
-                      <button
-                        key={admin.id}
-                        onClick={() => toggleMentionAdmin(admin.email)}
-                        className={`px-3 py-1 rounded-full text-xs ${
-                          mentionedAdmins.includes(admin.email)
-                            ? "bg-blue-500 text-white"
-                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                        }`}
-                      >
-                        {admin.nome}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                )}
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <Button variant="outline" onClick={() => setCommentModalOpen(false)} className="flex-1">
-                  Cancelar
-                </Button>
-                <Button onClick={handleAddComment} disabled={!newComment.trim()} className="flex-1">
-                  Enviar Comentário
-                </Button>
+              {/* Mention Admins */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mencionar Admins</label>
+                <div className="flex flex-wrap gap-2">
+                  {admins.map((admin) => (
+                    <Button
+                      key={admin.id}
+                      variant="outline"
+                      size="sm"
+                      className={`rounded-full px-3 py-1 text-sm ${
+                        mentionedAdmins.includes(admin.email)
+                          ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                          : ""
+                      }`}
+                      onClick={() => toggleMentionAdmin(admin.email)}
+                    >
+                      {admin.nome}
+                    </Button>
+                  ))}
+                </div>
               </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button onClick={() => setCommentModalOpen(false)} variant="outline" className="flex-1">
+                Cancelar
+              </Button>
+              <Button onClick={handleAddComment} disabled={!newComment.trim()} className="flex-1">
+                Enviar Comentário
+              </Button>
             </div>
           </div>
         </div>
-      )
-    )
-  }
+      </div>
+    ) : null
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -3620,1020 +4680,7 @@ export default function AdminDashboard() {
         </main>
       </div>
 
-      {showCreateMeetingModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">Nova Reunião</h2>
-              <Button variant="ghost" onClick={() => setShowCreateMeetingModal(false)}>
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700">Mentorado</label>
-                <div className="relative mb-2">
-                  <Input
-                    type="text"
-                    placeholder="Buscar mentorado por nome ou empresa..."
-                    value={mentoradoSearchTerm}
-                    onChange={(e) => setMentoradoSearchTerm(e.target.value)}
-                    className="pr-8"
-                  />
-                  {mentoradoSearchTerm && (
-                    <button
-                      onClick={() => setMentoradoSearchTerm("")}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <select
-                  value={newMeeting.mentorado_id}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, mentorado_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Selecione um mentorado</option>
-                  {filteredMentorados.length > 0 ? (
-                    filteredMentorados.map((mentorado) => (
-                      <option key={mentorado.id} value={mentorado.id}>
-                        {mentorado.nome} - {mentorado.empresa}
-                      </option>
-                    ))
-                  ) : (
-                    <option disabled>Nenhum mentorado encontrado</option>
-                  )}
-                </select>
-                {mentoradoSearchTerm && (
-                  <p className="text-xs text-gray-500 mt-1">{filteredMentorados.length} mentorado(s) encontrado(s)</p>
-                )}
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Mentor Responsável</label>
-                <select
-                  value={newMeeting.admin_id}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, admin_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  {admins.map((admin) => (
-                    <option key={admin.id} value={admin.id}>
-                      {admin.nome}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">Selecione qual mentor conduzirá esta reunião</p>
-              </div>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium">Título da Call</label>
-                  <Input
-                    value={newMeeting.titulo}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, titulo: e.target.value })}
-                    placeholder="Ex: Mentoria - Alinhamento inicial"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium">Link do Google Meet (opcional)</label>
-                  <Input
-                    type="url"
-                    value={newMeeting.meet_link || ""}
-                    onChange={(e) => setNewMeeting({ ...newMeeting, meet_link: e.target.value })}
-                    placeholder="https://meet.google.com/xxx-xxxx-xxx"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">Cole o link da reunião do Google Meet</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Data</label>
-                    <Input
-                      type="date"
-                      value={newMeeting.data}
-                      onChange={(e) => setNewMeeting({ ...newMeeting, data: e.target.value })}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Horário</label>
-                    <Input
-                      type="time"
-                      value={newMeeting.horario}
-                      onChange={(e) => setNewMeeting({ ...newMeeting, horario: e.target.value })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Duração (minutos)</label>
-                <select
-                  value={newMeeting.duracao}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, duracao: Number.parseInt(e.target.value) })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value={30}>30 minutos</option>
-                  <option value={60}>60 minutos</option>
-                  <option value={90}>90 minutos</option>
-                  <option value={120}>120 minutos</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Planejamento da Call (opcional)</label>
-                <textarea
-                  value={newMeeting.planejamento || ""}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, planejamento: e.target.value })}
-                  placeholder="Descreva os tópicos que devem ser abordados nesta call..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[80px] resize-y"
-                  rows={3}
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Adicione anotações sobre o que precisa ser discutido ou objetivos da reunião
-                </p>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium text-gray-700">Status da Reunião</label>
-                <select
-                  value={newMeeting.status || "agendada"}
-                  onChange={(e) => setNewMeeting({ ...newMeeting, status: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="agendada">Agendada</option>
-                  <option value="concluida">Concluída</option>
-                  <option value="cancelada">Cancelada</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <Button
-                onClick={handleCreateMeeting}
-                disabled={
-                  creating || !newMeeting.mentorado_id || !newMeeting.data || !newMeeting.horario || !newMeeting.titulo
-                }
-                className="flex-1 bg-blue-600 hover:bg-blue-700"
-              >
-                {creating ? "Criando..." : "Criar Reunião"}
-              </Button>
-              <Button variant="outline" onClick={() => setShowCreateMeetingModal(false)} className="flex-1">
-                Cancelar
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Novo Mentorado</h2>
-                <Button variant="ghost" onClick={() => setShowCreateModal(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Nome *</label>
-                    <Input
-                      value={newMentorado.nome}
-                      onChange={(e) => setNewMentorado({ ...newMentorado, nome: e.target.value })}
-                      placeholder="Nome completo"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Empresa *</label>
-                    <Input
-                      value={newMentorado.empresa}
-                      onChange={(e) => setNewMentorado({ ...newMentorado, empresa: e.target.value })}
-                      placeholder="Nome da empresa"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Email *</label>
-                    <Input
-                      type="email"
-                      value={newMentorado.email}
-                      onChange={(e) => setNewMentorado({ ...newMentorado, email: e.target.value })}
-                      placeholder="email@exemplo.com"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-gray-700">Telefone</label>
-                    <Input
-                      value={newMentorado.telefone}
-                      onChange={(e) => setNewMentorado({ ...newMentorado, telefone: e.target.value })}
-                      placeholder="(11) 99999-9999"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-700">Anotações Iniciais</label>
-                  <Textarea
-                    value={newMentorado.anotacoes}
-                    onChange={(e) => setNewMentorado({ ...newMentorado, anotacoes: e.target.value })}
-                    placeholder="Adicione observações sobre o mentorado..."
-                    rows={3}
-                  />
-                </div>
-
-                <div className="flex gap-2 pt-4">
-                  <Button
-                    onClick={handleCreateMentorado}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    disabled={!newMentorado.nome || !newMentorado.empresa || !newMentorado.email || creating}
-                  >
-                    {creating ? "Criando..." : "Criar Mentorado"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowCreateModal(false)}>
-                    Cancelar
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {editingMentorado && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  Personalizar - {mentorados.find((m) => m.id === editingMentorado)?.nome}
-                </h2>
-                <Button variant="ghost" onClick={() => setEditingMentorado(null)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div className="flex space-x-1 mb-6 bg-gray-100 p-1 rounded-lg">
-                {[
-                  { id: "geral", label: "Geral" },
-                  { id: "dashboard", label: "Dashboard" },
-                  { id: "cards", label: "Cards" },
-                  { id: "agenda", label: "Agenda" },
-                  { id: "empresa", label: "Empresa" },
-                  { id: "resumo", label: "Resumo" },
-                  { id: "comentarios", label: "Comentários" },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      activeTab === tab.id ? "bg-white text-blue-600 shadow-sm" : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-6">
-                {activeTab === "geral" && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Informações Gerais</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Fase Atual</label>
-                        <select
-                          value={editingData.faseAtual || ""}
-                          onChange={(e) => {
-                            const newPhase = e.target.value
-                            const defaultTexts = getDefaultTextsByPhase(newPhase, editingData.nome || "mentorado")
-                            setEditingData({
-                              ...editingData,
-                              faseAtual: newPhase,
-                              cardConcluido: defaultTexts.cardConcluido,
-                              cardTrabalhando: defaultTexts.cardTrabalhando,
-                              statusEmpresa: defaultTexts.statusEmpresa,
-                              conquistasRecentes: defaultTexts.conquistasRecentes,
-                              proximosMarcos: defaultTexts.proximosMarcos,
-                            })
-                          }}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">Selecione uma fase</option>
-                          <option value="Alinhamento">Alinhamento</option>
-                          <option value="Planejamento">Planejamento</option>
-                          <option value="Estruturação">Estruturação</option>
-                          <option value="Otimização">Otimização</option>
-                          <option value="Escala">Escala</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Progresso (%)</label>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={editingData.progresso || 0}
-                          onChange={(e) => setEditingData({ ...editingData, progresso: Number(e.target.value) })}
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Calls Realizadas</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={editingData.callsRealizadas || 0}
-                        onChange={(e) => setEditingData({ ...editingData, callsRealizadas: Number(e.target.value) })}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "dashboard" && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold">Configuração do Stepper</h3>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">
-                          Configurar Fases do Stepper
-                        </label>
-                        <div className="space-y-3">
-                          {["Alinhamento", "Planejamento", "Estruturação", "Otimização", "Escala"].map(
-                            (fase, index) => (
-                              <div key={fase} className="flex items-center justify-between p-3 border rounded-lg">
-                                <div className="flex items-center gap-3">
-                                  <div
-                                    className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                      editingData.faseAtual === fase
-                                        ? "bg-blue-600 text-white"
-                                        : index <
-                                            [
-                                              "Alinhamento",
-                                              "Planejamento",
-                                              "Estruturação",
-                                              "Otimização",
-                                              "Escala",
-                                            ].indexOf(editingData.faseAtual || "Alinhamento")
-                                          ? "bg-green-600 text-white"
-                                          : "bg-gray-200 text-gray-600"
-                                    }`}
-                                  >
-                                    {index <
-                                    ["Alinhamento", "Planejamento", "Estruturação", "Otimização", "Escala"].indexOf(
-                                      editingData.faseAtual || "Alinhamento",
-                                    )
-                                      ? "✓"
-                                      : index + 1}
-                                  </div>
-                                  <span className="font-medium">{fase}</span>
-                                </div>
-                                <button
-                                  onClick={() => {
-                                    const newPhase = fase
-                                    const defaultTexts = getDefaultTextsByPhase(
-                                      newPhase,
-                                      editingData.nome || "mentorado",
-                                    )
-                                    setEditingData({
-                                      ...editingData,
-                                      faseAtual: newPhase,
-                                      cardConcluido: defaultTexts.cardConcluido,
-                                      cardTrabalhando: defaultTexts.cardTrabalhando,
-                                      statusEmpresa: defaultTexts.statusEmpresa,
-                                      conquistasRecentes: defaultTexts.conquistasRecentes,
-                                      proximosMarcos: defaultTexts.proximosMarcos,
-                                    })
-                                  }}
-                                  className={`px-3 py-1 rounded text-sm ${
-                                    editingData.faseAtual === fase
-                                      ? "bg-blue-100 text-blue-700"
-                                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                                  }`}
-                                >
-                                  {editingData.faseAtual === fase ? "Atual" : "Definir como atual"}
-                                </button>
-                              </div>
-                            ),
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Textos do Dashboard</h4>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Saudação</label>
-                        <Input
-                          value={editingData.saudacao || ""}
-                          onChange={(e) => setEditingData({ ...editingData, saudacao: e.target.value })}
-                          placeholder="👋 Olá, {nome}!"
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Subtítulo</label>
-                        <Input
-                          value={editingData.subtitulo || ""}
-                          onChange={(e) => setEditingData({ ...editingData, subtitulo: e.target.value })}
-                          placeholder="Acompanhe seu progresso na mentoria"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "cards" && (
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-semibold">Cards de Status</h3>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-green-700">Card "Concluído Recentemente"</h4>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Título</label>
-                        <Input
-                          value={editingData.cardConcluido?.titulo || ""}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              cardConcluido: { ...editingData.cardConcluido, titulo: e.target.value },
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Texto</label>
-                        <Textarea
-                          value={editingData.cardConcluido?.texto || ""}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              cardConcluido: { ...editingData.cardConcluido, texto: e.target.value },
-                            })
-                          }
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-blue-700">Card "Trabalhando Agora"</h4>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Título</label>
-                        <Input
-                          value={editingData.cardTrabalhando?.titulo || ""}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              cardTrabalhando: { ...editingData.cardTrabalhando, titulo: e.target.value },
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Texto</label>
-                        <Textarea
-                          value={editingData.cardTrabalhando?.texto || ""}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              cardTrabalhando: { ...editingData.cardTrabalhando, texto: e.target.value },
-                            })
-                          }
-                          rows={3}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "agenda" && (
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-semibold">Agenda de Mentoria</h3>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Última Call Realizada</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Data</label>
-                          <Input
-                            value={editingData.agendaMentoria?.ultima_call?.data || ""}
-                            onChange={(e) =>
-                              setEditingData({
-                                ...editingData,
-                                agendaMentoria: {
-                                  ...editingData.agendaMentoria,
-                                  ultima_call: { ...editingData.agendaMentoria?.ultima_call, data: e.target.value },
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Título</label>
-                          <Input
-                            value={editingData.agendaMentoria?.ultima_call?.titulo || ""}
-                            onChange={(e) =>
-                              setEditingData({
-                                ...editingData,
-                                agendaMentoria: {
-                                  ...editingData.agendaMentoria,
-                                  ultima_call: {
-                                    ...editingData.agendaMentoria?.ultima_call,
-                                    titulo: e.target.value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Próxima Call Agendada</h4>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Data</label>
-                          <Input
-                            value={editingData.agendaMentoria?.proxima_call?.data || ""}
-                            onChange={(e) =>
-                              setEditingData({
-                                ...editingData,
-                                agendaMentoria: {
-                                  ...editingData.agendaMentoria,
-                                  proxima_call: {
-                                    ...editingData.agendaMentoria?.proxima_call,
-                                    data: e.target.value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Horário</label>
-                          <Input
-                            value={editingData.agendaMentoria?.proxima_call?.horario || ""}
-                            onChange={(e) =>
-                              setEditingData({
-                                ...editingData,
-                                agendaMentoria: {
-                                  ...editingData.agendaMentoria,
-                                  proxima_call: {
-                                    ...editingData.agendaMentoria?.proxima_call,
-                                    horario: e.target.value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                        <div>
-                          <label className="text-sm font-medium text-gray-700">Título</label>
-                          <Input
-                            value={editingData.agendaMentoria?.proxima_call?.titulo || ""}
-                            onChange={(e) =>
-                              setEditingData({
-                                ...editingData,
-                                agendaMentoria: {
-                                  ...editingData.agendaMentoria,
-                                  proxima_call: {
-                                    ...editingData.agendaMentoria?.proxima_call,
-                                    titulo: e.target.value,
-                                  },
-                                },
-                              })
-                            }
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium">Call Pendente</h4>
-                      <div className="flex items-center space-x-2 mb-4">
-                        <input
-                          type="checkbox"
-                          id="enableCallPendente"
-                          checked={editingData.callPendente?.titulo && editingData.callPendente.titulo.trim() !== ""}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setEditingData({
-                                ...editingData,
-                                callPendente: {
-                                  titulo: "Nova call pendente",
-                                  status: "A definir",
-                                  descricao: "",
-                                },
-                              })
-                            } else {
-                              setEditingData({
-                                ...editingData,
-                                callPendente: { titulo: "", status: "", descricao: "" },
-                              })
-                            }
-                          }}
-                          className="rounded border-gray-300"
-                        />
-                        <label htmlFor="enableCallPendente" className="text-sm font-medium text-gray-700">
-                          Mostrar call pendente
-                        </label>
-                      </div>
-
-                      {editingData.callPendente?.titulo && editingData.callPendente.titulo.trim() !== "" && (
-                        <div className="space-y-3 p-4 bg-orange-50 border border-orange-200 rounded-lg">
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Título da Call Pendente</label>
-                            <Input
-                              value={editingData.callPendente?.titulo || ""}
-                              onChange={(e) =>
-                                setEditingData({
-                                  ...editingData,
-                                  callPendente: { ...editingData.callPendente, titulo: e.target.value },
-                                })
-                              }
-                              placeholder="Ex: Análise financeira e projeções"
-                            />
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Status</label>
-                            <select
-                              value={editingData.callPendente?.status || "A definir"}
-                              onChange={(e) =>
-                                setEditingData({
-                                  ...editingData,
-                                  callPendente: { ...editingData.callPendente, status: e.target.value },
-                                })
-                              }
-                              className="w-full p-2 border border-gray-300 rounded-md"
-                            >
-                              <option value="A definir">A definir</option>
-                              <option value="Aguardando confirmação">Aguardando confirmação</option>
-                              <option value="Reagendamento necessário">Reagendamento necessário</option>
-                              <option value="Em análise">Em análise</option>
-                            </select>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "empresa" && (
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-semibold">Status da Empresa</h3>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Estágio Atual</label>
-                        <Input
-                          value={editingData.statusEmpresa?.estagio_atual || ""}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              statusEmpresa: { ...editingData.statusEmpresa, estagio_atual: e.target.value },
-                            })
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-sm font-medium text-gray-700">Próxima Fase</label>
-                        <Input
-                          value={editingData.statusEmpresa?.proxima_fase || ""}
-                          onChange={(e) =>
-                            setEditingData({
-                              ...editingData,
-                              statusEmpresa: { ...editingData.statusEmpresa, proxima_fase: e.target.value },
-                            })
-                          }
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Descrição da Fase</label>
-                      <Textarea
-                        value={editingData.statusEmpresa?.descricao_fase || ""}
-                        onChange={(e) =>
-                          setEditingData({
-                            ...editingData,
-                            statusEmpresa: { ...editingData.statusEmpresa, descricao_fase: e.target.value },
-                          })
-                        }
-                        rows={3}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Descrição da Próxima Fase</label>
-                      <Textarea
-                        value={editingData.statusEmpresa?.descricao_proxima || ""}
-                        onChange={(e) =>
-                          setEditingData({
-                            ...editingData,
-                            statusEmpresa: { ...editingData.statusEmpresa, descricao_proxima: e.target.value },
-                          })
-                        }
-                        rows={3}
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-sm font-medium text-gray-700">Ação Prioritária</label>
-                      <Textarea
-                        value={editingData.statusEmpresa?.acao_prioritaria || ""}
-                        onChange={(e) =>
-                          setEditingData({
-                            ...editingData,
-                            statusEmpresa: { ...editingData.statusEmpresa, acao_prioritaria: e.target.value },
-                          })
-                        }
-                        rows={2}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "resumo" && (
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-semibold">Resumo da Jornada</h3>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-green-700">Conquistas Recentes</h4>
-                      <div className="space-y-2">
-                        {(editingData.conquistasRecentes || []).map((conquista: any, index: number) => (
-                          <div key={index} className="flex gap-2">
-                            <Input
-                              value={conquista.titulo || ""}
-                              onChange={(e) => {
-                                const novasConquistas = [...(editingData.conquistasRecentes || [])]
-                                novasConquistas[index] = { ...conquista, titulo: e.target.value }
-                                setEditingData({ ...editingData, conquistasRecentes: novasConquistas })
-                              }}
-                              placeholder="Título da conquista"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const novasConquistas = editingData.conquistasRecentes.filter(
-                                  (_: any, i: number) => i !== index,
-                                )
-                                setEditingData({ ...editingData, conquistasRecentes: novasConquistas })
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            const novasConquistas = [
-                              ...(editingData.conquistasRecentes || []),
-                              { titulo: "", descricao: "" },
-                            ]
-                            setEditingData({ ...editingData, conquistasRecentes: novasConquistas })
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar Conquista
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <h4 className="font-medium text-blue-700">Próximos Marcos</h4>
-                      <div className="space-y-2">
-                        {(editingData.proximosMarcos || []).map((marco: any, index: number) => (
-                          <div key={index} className="flex gap-2">
-                            <Input
-                              value={marco.titulo || ""}
-                              onChange={(e) => {
-                                const novosMarcos = [...(editingData.proximosMarcos || [])]
-                                novosMarcos[index] = { ...marco, titulo: e.target.value }
-                                setEditingData({ ...editingData, proximosMarcos: novosMarcos })
-                              }}
-                              placeholder="Título do marco"
-                            />
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const novosMarcos = editingData.proximosMarcos.filter(
-                                  (_: any, i: number) => i !== index,
-                                )
-                                setEditingData({ ...editingData, proximosMarcos: novosMarcos })
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            const novosMarcos = [...(editingData.proximosMarcos || []), { titulo: "", descricao: "" }]
-                            setEditingData({ ...editingData, proximosMarcos: novosMarcos })
-                          }}
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Adicionar Marco
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {activeTab === "comentarios" && (
-                  <div className="space-y-6">
-                    <h3 className="text-lg font-semibold">Anotações da Mentoria</h3>
-
-                    <div className="space-y-4">
-                      {(editingData.anotacoesMentoria || []).map((anotacao: any, index: number) => (
-                        <div key={index} className="border rounded-lg p-4 space-y-3">
-                          <div className="grid grid-cols-3 gap-4">
-                            <div>
-                              <label className="text-sm font-medium text-gray-700">Autor</label>
-                              <Input
-                                value={anotacao.autor || ""}
-                                onChange={(e) => {
-                                  const novasAnotacoes = [...(editingData.anotacoesMentoria || [])]
-                                  novasAnotacoes[index] = { ...anotacao, autor: e.target.value }
-                                  setEditingData({ ...editingData, anotacoesMentoria: novasAnotacoes })
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium text-gray-700">Data</label>
-                              <Input
-                                value={anotacao.data || ""}
-                                onChange={(e) => {
-                                  const novasAnotacoes = [...(editingData.anotacoesMentoria || [])]
-                                  novasAnotacoes[index] = { ...anotacao, data: e.target.value }
-                                  setEditingData({ ...editingData, anotacoesMentoria: novasAnotacoes })
-                                }}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-sm font-medium text-gray-700">Cor</label>
-                              <select
-                                value={anotacao.cor || "blue"}
-                                onChange={(e) => {
-                                  const novasAnotacoes = [...(editingData.anotacoesMentoria || [])]
-                                  novasAnotacoes[index] = { ...anotacao, cor: e.target.value }
-                                  setEditingData({ ...editingData, anotacoesMentoria: novasAnotacoes })
-                                }}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md"
-                              >
-                                <option value="blue">Azul</option>
-                                <option value="green">Verde</option>
-                                <option value="orange">Laranja</option>
-                                <option value="red">Vermelho</option>
-                                <option value="purple">Roxo</option>
-                              </select>
-                            </div>
-                          </div>
-                          <div>
-                            <label className="text-sm font-medium text-gray-700">Texto</label>
-                            <Textarea
-                              value={anotacao.texto || ""}
-                              onChange={(e) => {
-                                const novasAnotacoes = [...(editingData.anotacoesMentoria || [])]
-                                novasAnotacoes[index] = { ...anotacao, texto: e.target.value }
-                                setEditingData({ ...editingData, anotacoesMentoria: novasAnotacoes })
-                              }}
-                              rows={3}
-                            />
-                          </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const novasAnotacoes = editingData.anotacoesMentoria.filter(
-                                (_: any, i: number) => i !== index,
-                              )
-                              setEditingData({ ...editingData, anotacoesMentoria: novasAnotacoes })
-                            }}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Remover
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="outline"
-                        onClick={() => {
-                          const novasAnotacoes = [
-                            ...(editingData.anotacoesMentoria || []),
-                            {
-                              autor: "iGaming Rat",
-                              data: new Date().toLocaleDateString(),
-                              texto: "",
-                              cor: "blue",
-                            },
-                          ]
-                          setEditingData({ ...editingData, anotacoesMentoria: novasAnotacoes })
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar Anotação
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex gap-2 pt-6 border-t">
-                <Button
-                  onClick={() => handleSavePersonalizacao(mentorados.find((m) => m.id === editingMentorado))}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  disabled={saving}
-                >
-                  {saving ? "Salvando..." : "Salvar Alterações"}
-                </Button>
-                <Button variant="outline" onClick={() => setEditingMentorado(null)}>
-                  Cancelar
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {completingMeeting && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full space-y-4">
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">Marcar Call como Concluída</h3>
-              <p className="text-sm text-gray-600 mt-1">{completingMeeting.titulo}</p>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Data da Realização</label>
-                <input
-                  type="date"
-                  value={completionData.data_realizacao}
-                  onChange={(e) => setCompletionData({ ...completionData, data_realizacao: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Horário da Realização</label>
-                <input
-                  type="time"
-                  value={completionData.horario_realizacao}
-                  onChange={(e) => setCompletionData({ ...completionData, horario_realizacao: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Comentários sobre a call (opcional)
-                </label>
-                <textarea
-                  value={completionData.observacoes}
-                  onChange={(e) => setCompletionData({ ...completionData, observacoes: e.target.value })}
-                  placeholder="Adicione observações sobre o que foi discutido na call..."
-                  rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setCompletingMeeting(null)
-                  setCompletionData({ observacoes: "", data_realizacao: "", horario_realizacao: "" })
-                }}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button onClick={handleSaveCompletion} className="flex-1 bg-green-600 hover:bg-green-700">
-                Marcar como Concluída
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* EDIT MEETING MODAL */}
+      {/* Modal de edição de reunião */}
       {showEditMeetingModal && editingMeeting && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">

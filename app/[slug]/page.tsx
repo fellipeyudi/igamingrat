@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useParams } from "next/navigation"
+import Link from "next/link" // Import Link
 import {
   Calendar,
   Users,
@@ -14,15 +15,91 @@ import {
   Check,
   LogOut,
   Star,
+  Play,
+  BookOpen,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
-export default function MentoriadoDashboard() {
+const AULAS_MOCKADAS = [
+  {
+    id: 1,
+    titulo: "Introdução ao iGaming",
+    descricao: "Conceitos básicos e fundamentos do mercado de iGaming",
+    modulo: "Módulo 1 - Fundamentos",
+    duracao: "60 minutos",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    ordem: 1,
+    concluida: true,
+    progresso: 100,
+    materiais: [
+      { nome: "Slides da Aula 1.pdf", url: "#" },
+      { nome: "Exercícios.pdf", url: "#" },
+    ],
+    comentarios: [
+      {
+        autor: "Pedro Barros",
+        texto: "Ótima introdução! Ficou muito claro.",
+        data: "Há 2 dias",
+      },
+    ],
+  },
+  {
+    id: 2,
+    titulo: "Estratégias de Marketing Digital",
+    descricao: "Como criar campanhas efetivas para o setor de iGaming",
+    modulo: "Módulo 2 - Marketing",
+    duracao: "90 minutos",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    ordem: 2,
+    concluida: false,
+    progresso: 45,
+    materiais: [
+      { nome: "Guia de Marketing.pdf", url: "#" },
+      { nome: "Templates de Campanha.zip", url: "#" },
+    ],
+    comentarios: [],
+  },
+  {
+    id: 3,
+    titulo: "Regulamentação e Compliance",
+    descricao: "Aspectos legais e regulatórios do mercado de iGaming",
+    modulo: "Módulo 3 - Legal",
+    duracao: "75 minutos",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    ordem: 3,
+    concluida: false,
+    progresso: 0,
+    materiais: [{ nome: "Legislação Atual.pdf", url: "#" }],
+    comentarios: [],
+  },
+  {
+    id: 4,
+    titulo: "Análise de Métricas e KPIs",
+    descricao: "Como medir e otimizar o desempenho do seu negócio",
+    modulo: "Módulo 4 - Analytics",
+    duracao: "80 minutos",
+    videoUrl: "https://www.youtube.com/embed/dQw4w9WgXcQ",
+    ordem: 4,
+    concluida: false,
+    progresso: 0,
+    materiais: [],
+    comentarios: [],
+  },
+]
+
+export default function MentoradoDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [loading, setLoading] = useState(true)
   const [mentoradoData, setMentoradoData] = useState<any>(null)
+  const [aulaAtual, setAulaAtual] = useState<any>(null)
+  const [novoComentario, setNovoComentario] = useState("")
+  const [aulas, setAulas] = useState<any[]>([])
+  const [abaAtiva, setAbaAtiva] = useState<"visao-geral" | "materiais" | "comentarios">("visao-geral")
+
+  const [progressoAulasData, setProgressoAulasData] = useState({ completas: 0, total: 0, percentual: 0 })
+
   const router = useRouter()
   const params = useParams()
   const slug = params.slug as string
@@ -43,6 +120,8 @@ export default function MentoriadoDashboard() {
           const data = await response.json()
           setMentoradoData(data)
           setIsAuthenticated(true)
+
+          await loadAulas()
         } else {
           localStorage.removeItem("mentorado_token")
           router.push(`/${slug}/login`)
@@ -58,6 +137,54 @@ export default function MentoriadoDashboard() {
 
     checkAuth()
   }, [slug, router])
+
+  const loadAulas = async () => {
+    try {
+      const response = await fetch(`/api/mentorado/${slug}/aulas`)
+      if (response.ok) {
+        const data = await response.json()
+        setAulas(data.aulas || [])
+
+        // Usar progresso que vem do banco
+        if (data.progresso) {
+          setProgressoAulasData({
+            completas: data.progresso.completas,
+            total: data.progresso.total,
+            percentual: data.progresso.percentual,
+          })
+        }
+      }
+    } catch (error) {
+      console.error("[v0] Erro ao carregar aulas:", error)
+    }
+  }
+
+  const handleMarcarConcluida = (aulaId: number) => {
+    setAulas(aulas.map((aula) => (aula.id === aulaId ? { ...aula, concluida: true, progresso: 100 } : aula)))
+  }
+
+  const handleAdicionarComentario = (aulaId: number) => {
+    if (!novoComentario.trim()) return
+
+    setAulas(
+      aulas.map((aula) =>
+        aula.id === aulaId
+          ? {
+              ...aula,
+              comentarios: [
+                ...aula.comentarios,
+                {
+                  autor: mentoradoData?.nome || "Você",
+                  texto: novoComentario,
+                  data: "Agora",
+                },
+              ],
+            }
+          : aula,
+      ),
+    )
+    setNovoComentario("")
+  }
 
   const handleLogout = () => {
     localStorage.removeItem("mentorado_token")
@@ -114,6 +241,10 @@ export default function MentoriadoDashboard() {
 
   const proximaFase = todasFases[faseAtualIndexSafe + 1] || "Escala"
 
+  const aulasConcluidasCount = progressoAulasData.completas
+  const progressoAulas = progressoAulasData.percentual
+  const proximaAula = aulas.find((a) => !a.concluida)
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -133,8 +264,8 @@ export default function MentoriadoDashboard() {
               <Star className="h-4 w-4" />
               Avaliar Mentoria
             </Button>
-            <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2 bg-transparent">
-              <LogOut className="h-4 w-4" />
+            <Button variant="outline" onClick={handleLogout} className="bg-transparent">
+              <LogOut className="h-4 w-4 mr-2" />
               Sair
             </Button>
           </div>
@@ -428,6 +559,414 @@ export default function MentoriadoDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Aulas e Conteúdo - REMOVIDO - Agora é uma página dedicada em /aulas */}
+        {/* <Card className="overflow-hidden">
+          <CardHeader className="border-b">
+            <div className="flex items-center justify-between">
+              <CardTitle className="flex items-center gap-2">
+                <BookOpen className="h-5 w-5" />
+                Aulas e Conteúdo
+              </CardTitle>
+              <Badge variant="outline" className="border-blue-200 text-blue-700 font-medium">
+                {aulasConcluidasCount}/{aulas.length} concluídas ({progressoAulas}%)
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="flex flex-col lg:flex-row min-h-[600px]">
+              {/* Sidebar de Aulas */}
+        {/* <div
+                className={`w-full lg:w-80 border-b lg:border-b-0 lg:border-r bg-gray-50/50 overflow-y-auto max-h-[600px] ${aulaAtual ? "hidden lg:block" : "block"}`}
+              >
+                <div className="p-4 space-y-2">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-sm text-gray-700">Módulos e Aulas</h3>
+                    <span className="text-xs text-gray-500">
+                      {aulasConcluidasCount}/{aulas.length}
+                    </span>
+                  </div>
+
+                  {aulas.map((aula) => (
+                    <button
+                      key={aula.id}
+                      onClick={() => {
+                        setAulaAtual(aula)
+                        setAbaAtiva("visao-geral") // Reset tab when changing lesson
+                      }}
+                      className={`w-full text-left p-3 rounded-lg transition-all ${
+                        aulaAtual?.id === aula.id
+                          ? "bg-blue-600 text-white shadow-md"
+                          : aula.concluida
+                            ? "bg-green-50 hover:bg-green-100 border border-green-200"
+                            : "bg-white hover:bg-gray-100 border border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-xs font-bold ${
+                            aulaAtual?.id === aula.id
+                              ? "bg-white text-blue-600"
+                              : aula.concluida
+                                ? "bg-green-600 text-white"
+                                : "bg-gray-200 text-gray-600"
+                          }`}
+                        >
+                          {aula.concluida ? <CheckCircle className="h-4 w-4" /> : aula.ordem}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p
+                            className={`text-sm font-medium truncate ${aulaAtual?.id === aula.id ? "text-white" : "text-gray-900"}`}
+                          >
+                            {aula.titulo}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span
+                              className={`text-xs flex items-center gap-1 ${aulaAtual?.id === aula.id ? "text-blue-100" : "text-gray-500"}`}
+                            >
+                              <Clock className="h-3 w-3" />
+                              {aula.duracao}
+                            </span>
+                            {aula.progresso > 0 && !aula.concluida && (
+                              <span
+                                className={`text-xs ${aulaAtual?.id === aula.id ? "text-blue-100" : "text-gray-500"}`}
+                              >
+                                {aula.progresso}%
+                              </span>
+                            )}
+                          </div>
+                          {aula.progresso > 0 && aula.progresso < 100 && (
+                            <Progress
+                              value={aula.progresso}
+                              className={`h-1 mt-2 ${aulaAtual?.id === aula.id ? "bg-blue-500" : ""}`}
+                            />
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Área Principal de Conteúdo */}
+        {/* <div className="flex-1 overflow-y-auto max-h-[600px]">
+                {!aulaAtual ? (
+                  <div className="p-8 text-center">
+                    <div className="max-w-md mx-auto">
+                      <Play className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Selecione uma aula</h3>
+                      <p className="text-gray-600 mb-6">
+                        Escolha uma aula na lista ao lado para começar seu aprendizado
+                      </p>
+                      {proximaAula && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-left">
+                          <Badge className="bg-blue-600 text-white mb-2">Próxima Aula</Badge>
+                          <h4 className="font-semibold text-gray-900 mb-1">{proximaAula.titulo}</h4>
+                          <p className="text-sm text-gray-600 mb-3">{proximaAula.modulo}</p>
+                          <Button
+                            onClick={() => {
+                              setAulaAtual(proximaAula)
+                              setAbaAtiva("visao-geral")
+                            }}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            Começar Agora
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-6 space-y-6">
+                    {/* Botão Voltar Mobile */}
+        {/* <Button onClick={() => setAulaAtual(null)} variant="ghost" className="lg:hidden mb-4">
+                      <ChevronRight className="h-4 w-4 rotate-180 mr-2" />
+                      Voltar para lista
+                    </Button>
+
+                    {/* Video Player */}
+        {/* <div className="bg-black rounded-lg overflow-hidden aspect-video">
+                      <iframe
+                        src={aulaAtual.videoUrl}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                      />
+                    </div>
+
+                    {/* Header da Aula */}
+        {/* <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <Badge variant="outline" className="mb-2">
+                          {aulaAtual.modulo}
+                        </Badge>
+                        <h2 className="text-2xl font-bold text-gray-900 mb-2">{aulaAtual.titulo}</h2>
+                        <div className="flex items-center gap-4 text-sm text-gray-600">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-4 w-4" />
+                            {aulaAtual.duracao}
+                          </span>
+                          {aulaAtual.comentarios.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              <MessageSquare className="h-4 w-4" />
+                              {aulaAtual.comentarios.length} comentários
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {!aulaAtual.concluida && (
+                        <Button
+                          onClick={() => handleMarcarConcluida(aulaAtual.id)}
+                          className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
+                        >
+                          <CheckCircle className="h-4 w-4" />
+                          Marcar como Concluída
+                        </Button>
+                      )}
+                      {aulaAtual.concluida && (
+                        <Badge className="bg-green-600 text-white px-4 py-2">
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Concluída
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Progresso */}
+        {/* {aulaAtual.progresso > 0 && aulaAtual.progresso < 100 && (
+                      <div>
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="font-medium text-gray-700">Seu progresso</span>
+                          <span className="text-gray-600">{aulaAtual.progresso}%</span>
+                        </div>
+                        <Progress value={aulaAtual.progresso} className="h-2" />
+                      </div>
+                    )}
+
+                    {/* Tabs de Conteúdo */}
+        {/* <div className="border-t pt-6">
+                      <div className="flex gap-4 border-b mb-6">
+                        <button
+                          onClick={() => setAbaAtiva("visao-geral")}
+                          className={`pb-3 px-1 font-medium text-sm transition-colors border-b-2 ${
+                            abaAtiva === "visao-geral"
+                              ? "border-blue-600 text-blue-600"
+                              : "border-transparent text-gray-600 hover:text-gray-900"
+                          }`}
+                        >
+                          Visão Geral
+                        </button>
+                        <button
+                          onClick={() => setAbaAtiva("materiais")}
+                          className={`pb-3 px-1 font-medium text-sm transition-colors border-b-2 ${
+                            abaAtiva === "materiais"
+                              ? "border-blue-600 text-blue-600"
+                              : "border-transparent text-gray-600 hover:text-gray-900"
+                          }`}
+                        >
+                          Materiais ({aulaAtual.materiais.length})
+                        </button>
+                        <button
+                          onClick={() => setAbaAtiva("comentarios")}
+                          className={`pb-3 px-1 font-medium text-sm transition-colors border-b-2 ${
+                            abaAtiva === "comentarios"
+                              ? "border-blue-600 text-blue-600"
+                              : "border-transparent text-gray-600 hover:text-gray-900"
+                          }`}
+                        >
+                          Comentários ({aulaAtual.comentarios.length})
+                        </button>
+                      </div>
+
+                      {/* Conteúdo das Tabs */}
+        {/* {abaAtiva === "visao-geral" && (
+                        <div className="space-y-4">
+                          <div>
+                            <h3 className="font-semibold text-gray-900 mb-2">Sobre esta aula</h3>
+                            <p className="text-gray-700 leading-relaxed">{aulaAtual.descricao}</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {abaAtiva === "materiais" && (
+                        <div className="space-y-3">
+                          {aulaAtual.materiais.length > 0 ? (
+                            aulaAtual.materiais.map((material: any, index: number) => (
+                              <a
+                                key={index}
+                                href={material.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 border rounded-lg hover:bg-gray-50 transition-colors group"
+                              >
+                                <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                                  <svg
+                                    className="h-5 w-5 text-blue-600"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                    />
+                                  </svg>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="font-medium text-gray-900 group-hover:text-blue-600 transition-colors">
+                                    {material.nome}
+                                  </p>
+                                  <p className="text-sm text-gray-500">{material.tipo || "Documento"}</p>
+                                </div>
+                                <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-blue-600 transition-colors" />
+                              </a>
+                            ))
+                          ) : (
+                            <div className="text-center py-8 text-gray-500">
+                              <svg
+                                className="h-12 w-12 mx-auto mb-3 text-gray-300"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
+                              </svg>
+                              <p>Nenhum material disponível para esta aula</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {abaAtiva === "comentarios" && (
+                        <div className="space-y-4">
+                          {/* Adicionar Comentário */}
+        {/* <div className="bg-gray-50 rounded-lg p-4">
+                            <Textarea
+                              placeholder="Compartilhe suas dúvidas ou reflexões sobre esta aula..."
+                              value={novoComentario}
+                              onChange={(e) => setNovoComentario(e.target.value)}
+                              className="mb-3 bg-white"
+                              rows={3}
+                            />
+                            <div className="flex justify-end">
+                              <Button
+                                onClick={() => handleAdicionarComentario(aulaAtual.id)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white"
+                                disabled={!novoComentario.trim()}
+                              >
+                                <Send className="h-4 w-4 mr-2" />
+                                Publicar Comentário
+                              </Button>
+                            </div>
+                          </div>
+
+                          {/* Lista de Comentários */}
+        {/* <div className="space-y-4">
+                            {aulaAtual.comentarios.map((comentario: any, index: number) => (
+                              <div key={index} className="border-b last:border-b-0 pb-4 last:pb-0">
+                                <div className="flex items-start gap-3">
+                                  <Avatar className="h-10 w-10">
+                                    <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-500 text-white text-sm">
+                                      {comentario.autor
+                                        .split(" ")
+                                        .map((n: string) => n[0])
+                                        .join("")
+                                        .slice(0, 2)}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="font-semibold text-gray-900">{comentario.autor}</span>
+                                      <span className="text-sm text-gray-500">{comentario.data}</span>
+                                    </div>
+                                    <p className="text-gray-700 leading-relaxed">{comentario.texto}</p>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Navegação entre aulas */}
+        {/* <div className="flex items-center justify-between pt-6 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          const currentIndex = aulas.findIndex((a) => a.id === aulaAtual.id)
+                          if (currentIndex > 0) {
+                            setAulaAtual(aulas[currentIndex - 1])
+                            setAbaAtiva("visao-geral")
+                          }
+                        }}
+                        disabled={aulaAtual.ordem === 1}
+                      >
+                        <ChevronRight className="h-4 w-4 rotate-180 mr-2" />
+                        Aula Anterior
+                      </Button>
+                      <Button
+                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => {
+                          const currentIndex = aulas.findIndex((a) => a.id === aulaAtual.id)
+                          if (currentIndex < aulas.length - 1) {
+                            setAulaAtual(aulas[currentIndex + 1])
+                            setAbaAtiva("visao-geral")
+                          }
+                        }}
+                        disabled={aulaAtual.ordem === aulas.length}
+                      >
+                        Próxima Aula
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </CardContent>
+        </Card> */}
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <BookOpen className="h-5 w-5 text-blue-600" />
+              <CardTitle>Aulas e Conteúdo</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-gray-600 mb-4">
+              Acesse todo o conteúdo do curso, assista às aulas e acompanhe seu progresso.
+            </p>
+            <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg mb-4">
+              <div>
+                <p className="text-sm font-medium text-blue-900">Seu Progresso</p>
+                <p className="text-2xl font-bold text-blue-600">{progressoAulas}%</p>
+                <p className="text-xs text-blue-700">
+                  {aulasConcluidasCount}/{progressoAulasData.total} aulas concluídas
+                </p>
+              </div>
+              <div className="bg-blue-100 p-3 rounded-full">
+                <Play className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+            <Link href={`/${slug}/aulas`}>
+              {" "}
+              {/* Changed to Link component */}
+              <Button className="w-full">
+                <BookOpen className="h-4 w-4 mr-2" />
+                Acessar Minhas Aulas
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
 
         {/* Resumo da Jornada */}
         <Card>
