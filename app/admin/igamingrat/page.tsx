@@ -3512,45 +3512,183 @@ export default function AdminDashboard() {
     )
   }
 
-  const convertToYouTubeEmbed = (url: string): string => {
-    if (!url || url.trim() === "") return url
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Verificando autenticação...</p>
+        </div>
+      </div>
+    )
+  }
 
-    try {
-      // Padrão 1: https://www.youtube.com/watch?v=VIDEO_ID
-      // Padrão 2: https://youtube.com/watch?v=VIDEO_ID
-      // Padrão 3: https://youtu.be/VIDEO_ID
-      // Padrão 4: https://www.youtube.com/embed/VIDEO_ID (já está correto)
+  if (!isAuthenticated) {
+    return null
+  }
 
-      let videoId = ""
+  const renderHeader = () => (
+    <header className="bg-white shadow-sm border-b border-gray-200">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <h1 className="text-xl font-semibold text-gray-900 capitalize">{activeSection}</h1>
+        </div>
+        <div className="flex items-center gap-4">
+          {/* User Profile/Settings */}
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="w-9 h-9 bg-blue-500 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+              MA
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-900">Marcos Andrade</p>
+              <p className="text-xs text-gray-500">Administrador</p>
+            </div>
+          </div>
+          <Button variant="outline" onClick={handleLogout} className="text-red-600 border-red-200 bg-transparent">
+            Sair
+          </Button>
+        </div>
+      </div>
+    </header>
+  )
 
-      // Se já estiver no formato embed, retorna como está
-      if (url.includes("youtube.com/embed/")) {
-        return url
-      }
+  const renderContent = () => {
+    if (activeSection === "whatsapp") {
+      return <WhatsAppTest />
+    }
 
-      // Tenta extrair o ID do formato watch?v=
-      if (url.includes("youtube.com/watch")) {
-        const urlParams = new URLSearchParams(url.split("?")[1])
-        videoId = urlParams.get("v") || ""
-      }
-      // Tenta extrair o ID do formato youtu.be
-      else if (url.includes("youtu.be/")) {
-        videoId = url.split("youtu.be/")[1]?.split("?")[0] || ""
-      }
-
-      // Se encontrou o ID, retorna no formato embed
-      if (videoId) {
-        return `https://www.youtube.com/embed/${videoId}`
-      }
-
-      // Se não encontrou o ID, retorna o original
-      return url
-    } catch (error) {
-      console.error("[v0] Erro ao converter URL do YouTube:", error)
-      return url
+    switch (activeSection) {
+      case "dashboard":
+        return renderDashboard()
+      case "agenda":
+        return renderAgendaSection()
+      case "logs":
+        return renderLogsSection()
+      case "disponibilidade":
+        return renderDisponibilidadeSection()
+      case "historico":
+        return renderHistoricoSection()
+      case "avaliacoes":
+        return renderAvaliacoes()
+      case "tasks":
+        return renderTasksSection()
+      case "aulas":
+        return renderAulasSection()
+      // Renderizando componente Minhas Demandas
+      case "minhas-demandas":
+        return (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Minhas Demandas</h2>
+                <p className="text-gray-600">Tasks e reuniões atribuídas a você</p>
+              </div>
+            </div>
+            <MinhasDemandas adminEmail={adminEmail} />
+          </div>
+        )
+      case "comentarios":
+        return renderComentariosSection()
+      default:
+        return <div className="p-6 text-center text-gray-500">Seção não encontrada.</div>
     }
   }
 
+  const renderCommentModal = () => {
+    return (
+      commentModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold">Comentar em Task</h2>
+                <button onClick={() => setCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Seu Comentário</label>
+                  <Textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Adicione seu comentário aqui..."
+                    rows={5}
+                    className="border border-gray-300 rounded-lg"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Anexos (opcional)</label>
+                  <input
+                    type="file"
+                    multiple
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      setCommentFiles((prevFiles) => [...prevFiles, ...files])
+                    }}
+                    className="hidden"
+                    id="comment-files"
+                  />
+                  <Button
+                    variant="outline"
+                    onClick={() => document.getElementById("comment-files")?.click()}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Selecionar Arquivos
+                  </Button>
+                  <div className="mt-2 space-y-1">
+                    {commentFiles.map((file, index) => (
+                      <div key={index} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                        <FileText className="h-3 w-3" />
+                        <span className="flex-1 truncate">{file.name}</span>
+                        <button onClick={() => removeCommentFile(index)} className="text-red-500 hover:text-red-700">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mentions */}
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700">Mencionar Admins (opcional)</label>
+                  <div className="flex flex-wrap gap-2">
+                    {admins.map((admin) => (
+                      <button
+                        key={admin.id}
+                        onClick={() => toggleMentionAdmin(admin.email)}
+                        className={`px-3 py-1 rounded-full text-xs ${
+                          mentionedAdmins.includes(admin.email)
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                        }`}
+                      >
+                        {admin.nome}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-3 mt-6">
+                <Button variant="outline" onClick={() => setCommentModalOpen(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddComment} disabled={!newComment.trim()} className="flex-1">
+                  Enviar Comentário
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )
+    )
+  }
+
+  // Renderizando a seção de aulas
   const renderAulasSection = () => {
     const addObjetivo = () => {
       if (objetivoInput.trim()) {
@@ -3680,6 +3818,40 @@ export default function AdminDashboard() {
       newAulas[index + 1].ordem = index + 2
 
       setAulas(newAulas)
+    }
+
+    const convertToYouTubeEmbed = (url: string): string => {
+      if (!url || url.trim() === "") return url
+
+      try {
+        // Padrão 1: https://www.youtube.com/watch?v=VIDEO_ID
+        // Padrão 2: https://youtube.com/watch?v=VIDEO_ID
+        // Padrão 3: https://youtu.be/VIDEO_ID
+        // Padrão 4: https://www.youtube.com/embed/VIDEO_ID (já está correto)
+
+        let videoId = ""
+
+        // Se já estiver no formato embed, retorna como está
+        if (url.includes("youtube.com/embed/")) {
+          return url
+        }
+
+        // Tenta extrair o ID do formato watch?v=
+        if (url.includes("youtube.com/watch")) {
+          const urlParams = new URLSearchParams(url.split("?")[1])
+          videoId = urlParams.get("v") || ""
+        }
+        // Tenta extrair o ID do formato youtu.be
+        else if (url.includes("youtu.be/")) {
+          videoId = url.split("youtu.be/")[1]?.split("?")[0] || ""
+        }
+
+        // Se não encontrou o ID, retorna o original
+        return url
+      } catch (error) {
+        console.error("[v0] Erro ao converter URL do YouTube:", error)
+        return url
+      }
     }
 
     const handleCreateAula = async () => {
@@ -4516,149 +4688,6 @@ export default function AdminDashboard() {
       setLoadingComentarios(false)
     }
   }
-
-  // Placeholder function for renderHeader - actual implementation would be here
-  const renderHeader = () => (
-    <header className="bg-white shadow-sm border-b border-gray-200 px-4 sm:px-6 py-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <h1 className="text-xl font-semibold text-gray-900">
-            {activeSection.charAt(0).toUpperCase() + activeSection.slice(1)}
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Add any header specific elements here, e.g., user profile dropdown */}
-        </div>
-      </div>
-    </header>
-  )
-
-  // Placeholder function for renderContent - actual implementation would be here
-  const renderContent = () => {
-    switch (activeSection) {
-      case "dashboard":
-        return renderDashboard()
-      case "agenda":
-        return renderAgendaSection()
-      case "logs":
-        return renderLogsSection()
-      case "tasks":
-        return renderTasksSection()
-      case "aulas":
-        return renderAulasSection()
-      case "avaliacoes":
-        return renderAvaliacoes()
-      case "comentarios":
-        return renderComentariosSection()
-      // Add cases for other sections like 'whatsapp', 'minhas-demandas'
-      case "whatsapp":
-        return <WhatsAppTest /> // Assuming WhatsAppTest is a component for this section
-      case "minhas-demandas":
-        return <MinhasDemandas /> // Assuming MinhasDemandas is a component for this section
-      default:
-        return <div>Seção não encontrada</div>
-    }
-  }
-
-  // Placeholder function for renderCommentModal - actual implementation would be here
-  const renderCommentModal = () =>
-    // This is a placeholder. The actual modal logic for comments needs to be implemented.
-    commentModalOpen && selectedTaskForComment ? (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">Comentar em Task: {selectedTaskForComment.titulo}</h2>
-              <button onClick={() => setCommentModalOpen(false)} className="text-gray-400 hover:text-gray-600">
-                <X className="h-6 w-6" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="new-comment" className="block text-sm font-medium text-gray-700 mb-1">
-                  Seu Comentário
-                </label>
-                <Textarea
-                  id="new-comment"
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  rows={5}
-                  placeholder="Escreva seu comentário aqui..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                />
-              </div>
-
-              {/* File Upload for Comments */}
-              <div>
-                <label htmlFor="comment-files" className="block text-sm font-medium text-gray-700 mb-2">
-                  Anexos (Opcional)
-                </label>
-                <input
-                  type="file"
-                  multiple
-                  onChange={(e) => setCommentFiles(Array.from(e.target.files || []))}
-                  className="hidden"
-                  id="comment-files"
-                />
-                <Button
-                  variant="outline"
-                  onClick={() => document.getElementById("comment-files")?.click()}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Selecionar Arquivos ({commentFiles.length})
-                </Button>
-                {commentFiles.length > 0 && (
-                  <div className="mt-2 space-y-1">
-                    {commentFiles.map((file, index) => (
-                      <div key={index} className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                        <FileText className="h-3 w-3" />
-                        <span className="flex-1 truncate">{file.name}</span>
-                        <button onClick={() => removeCommentFile(index)} className="text-red-500 hover:text-red-700">
-                          <X className="h-3 w-3" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Mention Admins */}
-              <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mencionar Admins</label>
-                <div className="flex flex-wrap gap-2">
-                  {admins.map((admin) => (
-                    <Button
-                      key={admin.id}
-                      variant="outline"
-                      size="sm"
-                      className={`rounded-full px-3 py-1 text-sm ${
-                        mentionedAdmins.includes(admin.email)
-                          ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
-                          : ""
-                      }`}
-                      onClick={() => toggleMentionAdmin(admin.email)}
-                    >
-                      {admin.nome}
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex gap-3 mt-6">
-              <Button onClick={() => setCommentModalOpen(false)} variant="outline" className="flex-1">
-                Cancelar
-              </Button>
-              <Button onClick={handleAddComment} disabled={!newComment.trim()} className="flex-1">
-                Enviar Comentário
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-    ) : null
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
