@@ -170,10 +170,8 @@ export default function AulaDetalhePage({
             <iframe
               src={aula.videoUrl}
               className="w-full h-full"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
-              referrerPolicy="strict-origin-when-cross-origin"
-              title={aula.titulo}
             />
           </div>
         </Card>

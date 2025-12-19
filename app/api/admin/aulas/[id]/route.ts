@@ -104,17 +104,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
       await sql`DELETE FROM objetivos_aprendizado WHERE aula_id = ${aulaId}`
 
       for (let i = 0; i < objetivos.length; i++) {
-        const objetivo = objetivos[i]
-        // Aceita tanto string quanto objeto
-        const textoObjetivo = typeof objetivo === "string" ? objetivo : objetivo?.texto || ""
-
-        // Só insere se houver texto
-        if (textoObjetivo.trim()) {
-          await sql`
-            INSERT INTO objetivos_aprendizado (aula_id, texto, ordem)
-            VALUES (${aulaId}, ${textoObjetivo}, ${i})
-          `
-        }
+        const textoObjetivo = typeof objetivos[i] === "string" ? objetivos[i] : objetivos[i].texto
+        await sql`
+          INSERT INTO objetivos_aprendizado (aula_id, texto, ordem)
+          VALUES (${aulaId}, ${textoObjetivo}, ${i})
+        `
       }
     }
 
@@ -123,34 +117,28 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
       for (let i = 0; i < materiais.length; i++) {
         const material = materiais[i]
-        // Se for string, converte para objeto
-        const materialObj = typeof material === "string" ? { titulo: material, tipo: "link", url: material } : material
-
-        // Só insere se houver título
-        if (materialObj?.titulo?.trim()) {
-          await sql`
-            INSERT INTO materiais_complementares (
-              aula_id, 
-              titulo, 
-              tipo, 
-              url,
-              arquivo_base64,
-              arquivo_nome,
-              arquivo_tamanho,
-              ordem
-            )
-            VALUES (
-              ${aulaId}, 
-              ${materialObj.titulo}, 
-              ${materialObj.tipo || "link"}, 
-              ${materialObj.url || null},
-              ${materialObj.arquivo_base64 || null},
-              ${materialObj.arquivo_nome || null},
-              ${materialObj.arquivo_tamanho || null},
-              ${i}
-            )
-          `
-        }
+        await sql`
+          INSERT INTO materiais_complementares (
+            aula_id, 
+            titulo, 
+            tipo, 
+            url,
+            arquivo_base64,
+            arquivo_nome,
+            arquivo_tamanho,
+            ordem
+          )
+          VALUES (
+            ${aulaId}, 
+            ${material.titulo}, 
+            ${material.tipo}, 
+            ${material.url || null},
+            ${material.arquivo_base64 || null},
+            ${material.arquivo_nome || null},
+            ${material.arquivo_tamanho || null},
+            ${i}
+          )
+        `
       }
     }
 
